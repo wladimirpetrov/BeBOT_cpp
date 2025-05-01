@@ -4,18 +4,33 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "../../../../include/piecewisebebot.h"
-#include "../../../../include/piecewisebernsteinpoly.h"
 #include <iomanip>
+#include "../../../../include/piecewisebebot.h"
+#include "../../../../include/piecewisedegelevmatrix.h"
+#include "../../../../include/piecewisebernsteinproduct.h"
+#include "../../../../include/piecewisebernsteinpoly.h"
 #include "mkl.h"
 
 using namespace Ipopt;
 
-class PointSetProblem : public Ipopt::TNLP {
+class PointSetProblem : public TNLP {
 public:
-    PointSetProblem(int N, int M, double tf, double x_init, double x_final, double y_init, double y_final, double headin, double headout, double n_obs, double sep, double v_max, double omega_max, const std::vector<double>& p_obs)
-        : N_(N), M_(M), tf_(tf), x_init_(x_init), x_final_(x_final), y_init_(y_init), y_final_(y_final), headin_(headin), headout_(headout), n_obs_(n_obs), sep_(sep), v_max_(v_max), omega_max_(omega_max), 
-          piecewiseBebot_(N, generateTknots()) { // Initialize PiecewiseBeBOT in the initializer list
+    // Constructor
+    PointSetProblem(int N, int M, double tf,
+                    double x_init, double x_final,
+                    double y_init, double y_final,
+                    double headin, double headout,
+                    double n_obs, double sep,
+                    double v_max, double omega_max,
+                    const std::vector<double>& p_obs)
+        : N_(N), M_(M), tf_(tf),
+          x_init_(x_init), x_final_(x_final),
+          y_init_(y_init), y_final_(y_final),
+          headin_(headin), headout_(headout),
+          n_obs_(n_obs), sep_(sep),
+          v_max_(v_max), omega_max_(omega_max),
+          p_obs_(p_obs),
+          piecewiseBebot_(N_, generateTknots()) {
         piecewiseBebot_.calculate();
     }
 
@@ -36,165 +51,355 @@ public:
         outFile.close();
     }
 
-    virtual bool get_nlp_info(Index& n, Index& m, Index& nnz_jac_g, Index& nnz_h_lag, IndexStyleEnum& index_style) {
-        // Define the number of variables, constraints, and Jacobian/Hessian non-zero elements.
-        n = 5 * M_* (N_ + 1) + 1; 
-        
-        // total number of collocation constraints
-        Index nSeg  = M_*(N_+1);
-        Index nDyn  = 3*nSeg;            // dyn1, dyn2, dyn3
-        Index nCont = (M_-1)*5;          // x,y,psi,V,omega continuity at each of M–1 gaps
-        m = nDyn + nCont;      // new total # of constraints
-                
-        //m = 3 * M_* (N_ + 1);
-        nnz_jac_g = n*m;  
-        nnz_h_lag = 0; 
+    // Public accessor for objective
+    Number get_final_obj_value() const { return final_obj_value_; }
+
+    // TNLP overrides
+    virtual bool get_nlp_info(Index& n, Index& m,
+                              Index& nnz_jac_g, Index& nnz_h_lag,
+                              IndexStyleEnum& index_style) override {
+        Index nSeg  = M_ * (N_ + 1);
+        n = 5 * nSeg + 1;
+        Index nDyn  = 3 * nSeg;
+        Index nCont = (M_ - 1) * 5;
+        Index degEl = 4 * N_;
+        Index Lobs  = (2 * degEl + 1) * M_;
+        Index nObs  = static_cast<Index>(p_obs_.size() / 2);
+        Index nObsC = nObs * Lobs;
+        m = nDyn + nCont + nObsC;
+        std::cout 
+        << "[DEBUG get_nlp_info] n = " << n 
+        << ", m = " << m 
+        << std::endl;
+        nnz_jac_g = n * m;
+        nnz_h_lag = 0;
         index_style = TNLP::C_STYLE;
         return true;
     }
 
-    virtual bool get_bounds_info(Index n, Number* x_l, Number* x_u, Index m, Number* g_l, Number* g_u) {
-        
+    virtual bool get_bounds_info(Index /*n*/, Number* x_l, Number* x_u,
+                                 Index /*m*/, Number* g_l, Number* g_u) override {
         Index nSeg   = M_ * (N_ + 1);
         Index totalX = 5 * nSeg + 1;
-
-        // -- x bounds (all free by default)
-        for(Index i = 0; i < totalX; ++i) {
-            x_l[i] = -std::numeric_limits<double>::infinity();
-            x_u[i] =  std::numeric_limits<double>::infinity();
+        // variables
+        for (Index i = 0; i < totalX; ++i) {
+            x_l[i] = 0.0;
+            x_u[i] =  tf_; 
         }
-        // x1 init & final
-        x_l[0]           = x_u[0]           = x_init_;
-        x_l[nSeg - 1]    = x_u[nSeg - 1]    = x_final_;
-        // x2 init & final
+        // boundary conditions
+        x_l[0] = x_u[0] = x_init_;
+        x_l[nSeg-1] = x_u[nSeg-1] = x_final_;
         Index off2 = nSeg;
-        x_l[off2]        = x_u[off2]        = y_init_;
+        x_l[off2] = x_u[off2] = y_init_;
         x_l[off2+nSeg-1] = x_u[off2+nSeg-1] = y_final_;
-        // psi init & final
         Index off3 = 2 * nSeg;
-        x_l[off3]        = x_u[off3]        = headin_;
+        x_l[off3] = x_u[off3] = headin_;
         x_l[off3+nSeg-1] = x_u[off3+nSeg-1] = headout_;
-        // V bounds
         Index off4 = 3 * nSeg;
-        for(Index i = off4; i < off4 + nSeg; ++i) {
-            x_l[i] = -v_max_;
-            x_u[i] =  v_max_;
-        }
-        // omega bounds
+        for (Index i = off4; i < off4 + nSeg; ++i) { x_l[i] = -v_max_; x_u[i] = v_max_; }
         Index off5 = 4 * nSeg;
-        for(Index i = off5; i < off5 + nSeg; ++i) {
-            x_l[i] = -omega_max_;
-            x_u[i] =  omega_max_;
-        }
-
-        // -- constraint bounds
-        // dynamics (dyn1, dyn2, dyn3) == 0
+        for (Index i = off5; i < off5 + nSeg; ++i) { x_l[i] = -omega_max_; x_u[i] = omega_max_; }
+        // constraints
         Index nDyn = 3 * nSeg;
-        for(Index i = 0; i < nDyn; ++i) {
-            g_l[i] = 0.0;
-            g_u[i] = 0.0;
-        }
-        // continuity == 0
+        for (Index i = 0; i < nDyn; ++i) { g_l[i] = 0.0; g_u[i] = 0.0; }
         Index idx = nDyn;
-        for(int seg = 0; seg < M_ - 1; ++seg) {
-            for(int c = 0; c < 5; ++c) {
-                g_l[idx] = 0.0;
-                g_u[idx] = 0.0;
-                ++idx;
+        for (int seg = 0; seg < M_-1; ++seg)
+            for (int c = 0; c < 5; ++c) { g_l[idx] = 0.0; g_u[idx] = 0.0; ++idx; }
+        Index degEl = 4 * N_;
+        Index Lobs  = (2 * degEl + 1) * M_;
+        Index nObs  = p_obs_.size() / 2;
+        Index nObsC = nObs * Lobs;
+        for (Index k = 0; k < nObsC; ++k) {
+            g_l[idx + k] = -std::numeric_limits<double>::infinity();
+            g_u[idx + k] = 0.0;
+        }
+        return true;
+    }
+
+    virtual bool get_starting_point(
+        Index n, bool /*init_x*/, Number* x,
+        bool /*init_z*/,   Number* /*z_L*/, Number* /*z_U*/,
+        Index /*init_lambda*/, bool /*init_zL*/, Number* /*zl*/) override
+    {
+        const int dim  = N_ + 1;
+        const int nSeg = M_ * dim;
+
+        // 1) build the same tknots0 as in MATLAB
+        //    (not strictly needed for x1/x2, but shown for clarity)
+        std::vector<double> tknots0(M_+1);
+        for(int i=0; i<=M_; ++i)
+            tknots0[i] = double(i) * tf_ / M_;
+
+        // 2) x1_init and x2_init:
+        //    for each segment j=0..M_-1, linearly interpolate between pinit and pfin
+        for(int j = 0; j < M_; ++j){
+            // segment endpoints in x
+            double x_start = x_init_ + (x_final_ - x_init_) * double(j)   / M_;
+            double x_end   = x_init_ + (x_final_ - x_init_) * double(j+1) / M_;
+            // segment endpoints in y
+            double y_start = y_init_ + (y_final_ - y_init_) * double(j)   / M_;
+            double y_end   = y_init_ + (y_final_ - y_init_) * double(j+1) / M_;
+
+            for(int i = 0; i < dim; ++i){
+                double alpha = double(i) / N_;  // goes 0..1
+                x[j*dim + i]         = x_start + alpha * (x_end - x_start);
+                x[nSeg + j*dim + i]  = y_start + alpha * (y_end - y_start);
             }
         }
 
-        // Print constraint bounds
-        for (Index i = 0; i < M_ * 2 * (N_ + 1) + M_-1; ++i) {
-            std::cout << "g_l[" << i << "] = " << g_l[i] << ", g_u[" << i << "] = " << g_u[i] << std::endl;
+        // 3) psi_init = linspace(headin, headout, nSeg)
+        for(int i = 0; i < nSeg; ++i){
+            x[2*nSeg + i] = headin_ 
+                        + (headout_ - headin_) * double(i) / double(nSeg - 1);
         }
+
+        // 4) V_init = vmax/2
+        for(int i = 0; i < nSeg; ++i){
+            x[3*nSeg + i] = v_max_ * 0.5;
+        }
+
+        // 5) omega_init = 0
+        for(int i = 0; i < nSeg; ++i){
+            x[4*nSeg + i] = 0.0;
+        }
+
+        // 6) final time T_init = tf_
+        x[n-1] = tf_;
 
         return true;
     }
 
-    // initialization of the starting point
-    virtual bool get_starting_point(Index n, bool init_x, Number* x, bool init_z, Number* z_L, Number* z_U, Index m, bool init_lambda, Number* lambda) {
-        for (Index i = 0; i < n-1; ++i) {
-            x[i] = 1.0;         // your guess for all except the last
+
+
+    virtual bool eval_f(Index n, const Number* x, bool, Number& obj) override {
+        obj = x[n-1];
+        return true;
+    }
+
+    virtual bool eval_g(Index n, const Number* x, bool, Index m, Number* g) override {
+        //
+        // 1) Extract final time and rebuild the knot vector
+        //
+        tf_ = x[n-1];
+        //std::cout << "[DBG] tf_ = " << tf_ << std::endl;
+
+        auto tknots = generateTknots();
+        //std::cout << "[DBG] tknots = ";
+        //for (double tt : tknots) std::cout << tt << " ";
+        //std::cout << std::endl;
+
+        //
+        // 2) Reconstruct the PiecewiseBeBOT and get its full block‐diagonal Dm
+        //
+        piecewiseBebot_ = PiecewiseBeBOT(N_, tknots);
+        //std::cout << "[DBG] piecewiseBebot_ constructed" << std::endl;
+
+        // get the full 2D differentiation matrix (size = (N+1)*M by (N+1)*M)
+        auto Dm2D = piecewiseBebot_.getDifferentiationMatrix();
+        int dim  = N_ + 1;
+        int nSeg = M_ * dim;
+        //std::cout << "[DBG] Full Dm2D (" << nSeg << "×" << nSeg << ")\n";
+
+        // print the full Dm2D block-diagonal matrix
+        // for (int r = 0; r < nSeg; ++r) {
+        //     std::cout << "  ";
+        //     for (int c = 0; c < nSeg; ++c) {
+        //         std::cout << std::setw(10)
+        //                 << std::fixed << std::setprecision(6)
+        //                 << Dm2D[r][c] << " ";
+        //     }
+        //     std::cout << "\n";
+        // }
+
+        //
+        // 3) Slice out x1, x2, psi, V and om from the decision vector x
+        //
+        std::vector<double> x1   (x,             x + nSeg);
+        std::vector<double> x2   (x + nSeg,      x + 2*nSeg);
+        std::vector<double> psi  (x + 2*nSeg,    x + 3*nSeg);
+        std::vector<double> V    (x + 3*nSeg,    x + 4*nSeg);
+        std::vector<double> om   (x + 4*nSeg,    x + 5*nSeg);
+        // std::cout << "[DEBUG] x1: ";
+        // for (Index i = 0; i < nSeg; ++i) std::cout << x1[i] << " ";
+        // std::cout << "\n[DEBUG] x2: ";
+        // for (Index i = 0; i < nSeg; ++i) std::cout << x2[i] << " ";
+        // std::cout << "\n[DEBUG] psi: ";
+        // for (Index i = 0; i < nSeg; ++i) std::cout << psi[i] << " ";
+        // std::cout << "\n[DEBUG] V:   ";
+        // for (Index i = 0; i < nSeg; ++i) std::cout << V[i] << " ";
+        // std::cout << "\n[DEBUG] om:  ";
+        // for (Index i = 0; i < nSeg; ++i) std::cout << om[i] << " ";
+        // std::cout << "\n";
+
+        //
+        // 4) Allocate storage for the derivatives
+        //
+        std::vector<double> Dx1(nSeg, 0.0), Dx2(nSeg, 0.0), Dpsi(nSeg, 0.0);
+
+        //
+        // 5) Manually multiply each block of Dm2D^T × the corresponding slice
+        for (int seg = 0; seg < M_; ++seg) {
+            int row0 = seg * dim;
+            int col0 = seg * dim;
+            for (int i = 0; i < dim; ++i) {
+                double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
+                for (int j = 0; j < dim; ++j) {
+                    // note the swapped indices: we're reading the (j,i) entry instead of (i,j)
+                    double Dm_ji = Dm2D[col0 + j][ row0 + i ];
+                    sum1 += Dm_ji * x1[col0 + j];
+                    sum2 += Dm_ji * x2[col0 + j];
+                    sum3 += Dm_ji * psi[col0 + j];
+                }
+                Dx1[row0 + i]  = sum1;
+                Dx2[row0 + i]  = sum2;
+                Dpsi[row0 + i] = sum3;
             }
-            x[n-1] = tf_;
-
-        //for (Index i = 0; i < M_ * (N_ + 1) + 1; ++i) {
-        //    std::cout << "x[" << i << "] = " << x[i] << std::endl;
-        //}
-
-        return true;
-    }
-
-    virtual bool eval_f(Index n, const Number* x, bool new_x, Number& obj_value) {
-        // Objective function
-        obj_value = x[5 * M_ * (N_ + 1)];
-        //std::cout << "objective value = " << obj_value << std::endl;
-        return true;
-    }
-    ///*
-    virtual bool eval_g(Index n, const Number* x, bool new_x, Index m, Number* g) {
-        
-        tf_ = x[M_ * (N_ + 1)];
-        std::vector<double> tknots = generateTknots();
-        PiecewiseBeBOT piecewiseBebot(N_, tknots);
-        piecewiseBebot.calculate();
-        const auto& Dm_flat = piecewiseBebot.getDifferentiationMatrixFlat();
-
-        // 6b) Slice into state/control vectors
-        Index nSeg = M_ * (N_ + 1);
-        std::vector<double> x1_vec   (x, x +   nSeg);
-        std::vector<double> x2_vec   (x +   nSeg, x + 2* nSeg);
-        std::vector<double> psi_vec  (x + 2* nSeg, x + 3* nSeg);
-        std::vector<double> V_vec    (x + 3* nSeg, x + 4* nSeg);
-        std::vector<double> omega_vec(x + 4* nSeg, x + 5* nSeg);
-
-        // 6c) Compute derivatives D·x1, D·x2, D·psi using MKL
-        std::vector<double> Dx1(nSeg,0.0), Dx2(nSeg,0.0), Dpsi(nSeg,0.0);
-        for(int seg = 0; seg < M_; ++seg) {
-            int blk = seg*(N_+1)*(N_+1);
-            int off = seg*(N_+1);
-            cblas_dgemv(CblasRowMajor, CblasNoTrans,
-                        N_+1, N_+1,
-                        1.0, &Dm_flat[blk], N_+1,
-                             &x1_vec[off], 1,
-                        0.0, &Dx1[off],    1);
-            cblas_dgemv(CblasRowMajor, CblasNoTrans,
-                        N_+1, N_+1,
-                        1.0, &Dm_flat[blk], N_+1,
-                             &x2_vec[off], 1,
-                        0.0, &Dx2[off],    1);
-            cblas_dgemv(CblasRowMajor, CblasNoTrans,
-                        N_+1, N_+1,
-                        1.0, &Dm_flat[blk], N_+1,
-                             &psi_vec[off], 1,
-                        0.0, &Dpsi[off],   1);
         }
 
-        // 6d) Dynamics: dyn1, dyn2, dyn3
-        for(Index i = 0; i < nSeg; ++i) {
-            // dyn1 = Dx1 - V*cos(psi)
-            g[i] = Dx1[i] - V_vec[i] * std::cos(psi_vec[i]);
-            // dyn2 = Dx2 - V*sin(psi)
-            g[nSeg + i] = Dx2[i] - V_vec[i] * std::sin(psi_vec[i]);
-            // dyn3 = Dpsi - omega
-            g[2*nSeg + i] = Dpsi[i] - omega_vec[i];
+        // print the full derivative vectors:
+        // std::cout << "[DEBUG] full Dx1 (" << nSeg << "): ";
+        // for (int i = 0; i < nSeg; ++i)
+        //     std::cout << std::fixed << std::setprecision(6) << Dx1[i] << " ";
+        // std::cout << "\n";
+
+        // std::cout << "[DEBUG] full Dx2 (" << nSeg << "): ";
+        // for (int i = 0; i < nSeg; ++i)
+        //     std::cout << std::fixed << std::setprecision(6) << Dx2[i] << " ";
+        // std::cout << "\n";
+
+        // std::cout << "[DEBUG] full Dpsi (" << nSeg << "): ";
+        // for (int i = 0; i < nSeg; ++i)
+        //     std::cout << std::fixed << std::setprecision(6) << Dpsi[i] << " ";
+        // std::cout << "\n";
+
+
+        //
+        // 6) Fill in the dynamic constraints: 
+        //    Dx1 - V*cos(psi) = 0,  Dx2 - V*sin(psi) = 0,  Dpsi - om = 0
+        //
+        for (Index i = 0; i < nSeg; ++i) {
+            g[i]           = Dx1[i]   - V[i]   * std::cos( psi[i]);
+            g[nSeg + i]    = Dx2[i]   - V[i]   * std::sin( psi[i]);
+            g[2*nSeg + i]  = Dpsi[i]  - om[i];
         }
 
-        // 6e) Continuity constraints: end-of-seg - start-of-next
+        // print the entire first dynamic vector:
+        // std::cout << "[DEBUG dyn1] ";
+        // for (Index i = 0; i < nSeg; ++i) {
+        //     std::cout << g[i] << " ";
+        // }
+        // std::cout << "\n";
+
+        // // print the entire second dynamic vector:
+        // std::cout << "[DEBUG dyn2] ";
+        // for (Index i = 0; i < nSeg; ++i) {
+        //     std::cout << g[nSeg + i] << " ";
+        // }
+        // std::cout << "\n";
+
+        // // print the entire third dynamic vector:
+        // std::cout << "[DEBUG dyn3] ";
+        // for (Index i = 0; i < nSeg; ++i) {
+        //     std::cout << g[2*nSeg + i] << " ";
+        // }
+        // std::cout << "\n";
+
+        //
+        // 7) Continuity constraints between segments
+        //
         Index idx = 3 * nSeg;
-        for(int seg = 0; seg < M_ - 1; ++seg) {
-            int endN  = (seg+1)*(N_+1) - 1;
-            int nextN = endN + 1;
-            g[idx++] = x1_vec[endN]    - x1_vec[nextN];
-            g[idx++] = x2_vec[endN]    - x2_vec[nextN];
-            g[idx++] = psi_vec[endN]   - psi_vec[nextN];
-            g[idx++] = V_vec[endN]     - V_vec[nextN];
-            g[idx++] = omega_vec[endN] - omega_vec[nextN];
+        for (int seg = 0; seg < M_ - 1; ++seg) {
+            int endN = (seg + 1) * dim - 1;
+            int nxt  = endN + 1;
+            g[idx++] = x1[endN]  - x1[nxt];
+            g[idx++] = x2[endN]  - x2[nxt];
+            g[idx++] = psi[endN] - psi[nxt];
+            g[idx++] = V[endN]   - V[nxt];
+            g[idx++] = om[endN]  - om[nxt];
         }
 
+        //
+        // 8) Obstacle‐avoidance constraints
+        //
+        Index degEl = 4 * N_;
+        Index Lobs  = (2 * degEl + 1) * M_;
+        Index nObs  = p_obs_.size() / 2;
+        idx = 3 * nSeg + (M_ - 1) * 5;
+        auto x1_el = PiecewiseDegElevMatrix(x1, M_, N_, degEl);
+        auto x2_el = PiecewiseDegElevMatrix(x2, M_, N_, degEl);
+
+        // ——— DEBUG: print the full elevated control‐point vectors ———
+            // std::cout << "[DEBUG] x1_el (" << x1_el.size() << "): ";
+            // for (size_t i = 0; i < x1_el.size(); ++i) {
+            //     std::cout << std::fixed << std::setprecision(6) << x1_el[i] 
+            //             << (i + 1 < x1_el.size() ? " " : "\n");
+            // }
+
+            // std::cout << "[DEBUG] x2_el (" << x2_el.size() << "): ";
+            // for (size_t i = 0; i < x2_el.size(); ++i) {
+            //     std::cout << std::fixed << std::setprecision(6) << x2_el[i] 
+            //             << (i + 1 < x2_el.size() ? " " : "\n");
+            // }
+
+        double sep2 = sep_ * sep_;
+        for (Index o = 0; o < nObs; ++o) {
+            // split the vector in two halves instead of interleaving
+            double xo = p_obs_[o];           // 1.5, then 4.0, then 6.0, then 8.0
+            double yo = p_obs_[nObs + o];    // 2.0,  3.5,  6.0,  8.5
+
+            std::vector<double> dx(x1_el.size()), dy(x2_el.size());
+            for (size_t i = 0; i < dx.size(); ++i) {
+                dx[i] = x1_el[i] - xo;
+                dy[i] = x2_el[i] - yo;
+            }
+
+            // ——— DEBUG: print dx and dy ———
+            // std::cout << "[DEBUG] dx (obs " << o << ") size=" << dx.size() << ":\n    ";
+            // for (size_t i = 0; i < dx.size(); ++i) {
+            //     std::cout << std::fixed << std::setprecision(6) << dx[i]
+            //             << (i+1<dx.size()?" ":"\n");
+            //     if ((i+1) % (degEl+1) == 0 && i+1<dx.size()) std::cout << "    ";
+            // }
+
+            // std::cout << "[DEBUG] dy (obs " << o << ") size=" << dy.size() << ":\n    ";
+            // for (size_t i = 0; i < dy.size(); ++i) {
+            //     std::cout << std::fixed << std::setprecision(6) << dy[i]
+            //             << (i+1<dy.size()?" ":"\n");
+            //     if ((i+1) % (degEl+1) == 0 && i+1<dy.size()) std::cout << "    ";
+            // }
+
+            auto bx = PiecewiseBernsteinProduct(dx, dx, M_, degEl);
+            auto by = PiecewiseBernsteinProduct(dy, dy, M_, degEl);
+
+            // ——— DEBUG: print the full Bernstein‐product vectors ———
+            // std::cout << "[DEBUG] bx (" << bx.size() << "): ";
+            // for (size_t i = 0; i < bx.size(); ++i) {
+            //     std::cout << std::fixed << std::setprecision(6) << bx[i]
+            //             << (i + 1 < bx.size() ? " " : "\n");
+            // }
+
+            // std::cout << "[DEBUG] by (" << by.size() << "): ";
+            // for (size_t i = 0; i < by.size(); ++i) {
+            //     std::cout << std::fixed << std::setprecision(6) << by[i]
+            //             << (i + 1 < by.size() ? " " : "\n");
+            // }
+
+            for (size_t i = 0; i < bx.size(); ++i) {
+                g[idx++] = -(bx[i] + by[i]) + sep2;
+            }
+        }
+        // ——— Now print the entire g vector ———
+        // std::cout << "[DEBUG] full g (" << m << " entries):\n    ";
+        // for (Index i = 0; i < m; ++i) {
+        //     std::cout << std::fixed << std::setprecision(6) << g[i];
+        //     if (i + 1 < m) std::cout << ", ";
+        //     if ((i + 1) % dim == 0 && i + 1 < m)
+        //         std::cout << "\n    ";  // line break every 'dim' entries
+        // }
+        // std::cout << "\n";
         return true;
     }
+
     // Define the Jacobian of /the constraints
     virtual bool eval_jac_g(Index n, const Number* x, bool new_x, Index m, Index nele_jac, Index* iRow, Index* jCol, Number* values) {
         if (values == NULL) {
@@ -208,244 +413,202 @@ public:
         }
         return true;
     }
-
     // Define the gradient of the objective function
     virtual bool eval_grad_f(Index n, const Number* x, bool new_x, Number* grad_f) {
         return true;
     }
-
-    // Method to finalize the solution
-    virtual void finalize_solution(
-        SolverReturn status, 
-        Index n,
-        const Number* x,
-        const Number* z_L,
-        const Number* z_U,
-        Index m,
-        const Number* g,
-        const Number* lambda,
-        Number obj_value,
-        const IpoptData* ip_data,
-        IpoptCalculatedQuantities* ip_cq
-
-    ) 
-    
-    // x1 - x
-    { solution_x_.resize(n-1);
-        for (Index i = 0; i < n-1; ++i) {
-            solution_x_[i] = x[i];
-            //std::cout << "solution_x_[" << i << "] = " << solution_x_[i] << std::endl;
-        }
-        final_obj_value_ = obj_value;
-        
-        // Updating tf_ with the optimized value of tf (which is x[M_ * (N_ + 1))
-        tf_ = x[M_ * (N_ + 1)];
-        //std::cout << "tf_ = " << tf_ << std::endl;
-
-        // Recalculate the PiecewiseBeBOT points with the updated final time tf_
+    // finalize_solution lives inside the class
+    virtual void finalize_solution(SolverReturn,
+                                   Index n,
+                                   const Number* x,
+                                   const Number*, const Number*,
+                                   Index, const Number*, const Number*,
+                                   Number obj,
+                                   const IpoptData*,
+                                   IpoptCalculatedQuantities*) override {
+        Index nSeg = M_*(N_+1);
+        solution_x1_.assign(x, x+nSeg);
+        solution_x2_.assign(x+nSeg, x+2*nSeg);
+        solution_psi_.assign(x+2*nSeg, x+3*nSeg);
+        solution_v_.assign(x+3*nSeg, x+4*nSeg);
+        solution_om_.assign(x+4*nSeg, x+5*nSeg);
+        final_obj_value_ = obj;
+        tf_ = x[n-1];
         std::vector<double> tknots = generateTknots();
         piecewiseBebot_ = PiecewiseBeBOT(N_, tknots);
         piecewiseBebot_.calculate();
-
-    
-        // Calculating final time t using obj_value as final tf for BernsteinPoly library
+        
         final_time_.resize(1000);
         for (int i = 0; i < 1000; ++i) {
-            final_time_[i] = i * obj_value / 999.0;
+            final_time_[i] = i * obj / 999.0;
             //std::cout << "final_time_[" << i << "] = " << final_time_[i] << std::endl;
         }
 
-        // Calculating final time t using obj_value as final tf for BernsteinPoly library
-        std::vector<std::vector<double>> solution_x_2d(1, std::vector<double>(solution_x_.begin(), solution_x_.end()));
-        piecewisebernsteinpoly_result_ = PiecewiseBernsteinPoly(solution_x_2d, tknots, final_time_);
-        
-        // After calculating final_time_ and bernsteinpoly_result_
-        // Flatten bernsteinpoly_result_
-        std::vector<double> flattened_result;
-        for (const auto& row : piecewisebernsteinpoly_result_) {
-            flattened_result.insert(flattened_result.end(), row.begin(), row.end());
+        // X1
+        std::vector<std::vector<double>> solution_x1_d(1, std::vector<double>(solution_x1_.begin(), solution_x1_.end()));
+        piecewisebernsteinpoly_result_x1_ = PiecewiseBernsteinPoly(solution_x1_d, tknots, final_time_);
+        // Flatten bernsteinpoly_x1_result_
+        std::vector<double> flattened_result_x1;
+        for (const auto& row : piecewisebernsteinpoly_result_x1_) {
+            flattened_result_x1.insert(flattened_result_x1.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result, "x.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_x_, "x_controlpoints.csv");
+        writeToCSV(final_time_, flattened_result_x1, "x1.csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_x1_, "x1_controlpoints.csv");
 
-        // x2 - g1
-        solution_x2_.resize(n-1);
-        for (Index i = 0; i < n-1; ++i) {
-            solution_x2_[i] = g[i];
-            //std::cout << "solution_x2_[" << i << "] = " << solution_x2_[i] << std::endl;
+        // X2
+        std::vector<std::vector<double>> solution_x2_d(1, std::vector<double>(solution_x2_.begin(), solution_x2_.end()));
+        piecewisebernsteinpoly_result_x2_ = PiecewiseBernsteinPoly(solution_x2_d, tknots, final_time_);
+        // Flatten bernsteinpoly_psi_result_
+        std::vector<double> flattened_result_x2;
+        for (const auto& row : piecewisebernsteinpoly_result_x2_) {
+            flattened_result_x2.insert(flattened_result_x2.end(), row.begin(), row.end());
         }
-        std::vector<std::vector<double>> solution_x2_2d(1, std::vector<double>(solution_x2_.begin(), solution_x2_.end()));      
-        piecewisebernsteinpoly_resultx2_ = PiecewiseBernsteinPoly(solution_x2_2d, tknots, final_time_);
-        
-        std::vector<double> flattened_result1;
-        for (const auto& row : piecewisebernsteinpoly_resultx2_) {
-            flattened_result1.insert(flattened_result1.end(), row.begin(), row.end());
+        writeToCSV(final_time_, flattened_result_x2, "x2.csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_x2_, "x2_controlpoints.csv");
+
+        // psi
+        std::vector<std::vector<double>> solution_psi_d(1, std::vector<double>(solution_psi_.begin(), solution_psi_.end()));
+        piecewisebernsteinpoly_result_psi_ = PiecewiseBernsteinPoly(solution_psi_d, tknots, final_time_);
+        // Flatten bernsteinpoly_psi_result_
+        std::vector<double> flattened_result_psi;
+        for (const auto& row : piecewisebernsteinpoly_result_psi_) {
+            flattened_result_psi.insert(flattened_result_psi.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result1, "x1.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_x2_, "x1_controlpoints.csv");
+        writeToCSV(final_time_, flattened_result_psi, "psi.csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_psi_, "psi_controlpoints.csv");
 
-        // u - g2
-        solution_u_.resize(n-1);
-        for (Index i = 0; i < n-1; ++i) {
-            solution_u_[i] = g[M_*(N_ + 1) + i];
-            //std::cout << "solution_u_[" << i << "] = " << solution_u_[i] << std::endl;
+        // v
+        std::vector<std::vector<double>> solution_v_d(1, std::vector<double>(solution_v_.begin(), solution_v_.end()));
+        piecewisebernsteinpoly_result_v_ = PiecewiseBernsteinPoly(solution_v_d, tknots, final_time_);
+        // Flatten bernsteinpoly_v_result_
+        std::vector<double> flattened_result_v;
+        for (const auto& row : piecewisebernsteinpoly_result_v_) {
+            flattened_result_v.insert(flattened_result_v.end(), row.begin(), row.end());
         }
-        std::vector<std::vector<double>> solution_u_2d(1, std::vector<double>(solution_u_.begin(), solution_u_.end()));        
-        piecewisebernsteinpoly_resultu_ = PiecewiseBernsteinPoly(solution_u_2d, tknots, final_time_);
-        
-        //std::cout << "solution_u_2d :" << std::endl;
-        //for (const auto& row : piecewisebernsteinpoly_resultu_) {
-        //    for (const auto& elem : row) {
-        //        std::cout << elem << " ";
-        //    }
-        //    std::cout << std::endl; 
-        //}
+        writeToCSV(final_time_, flattened_result_v, "v.csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_v_, "v_controlpoints.csv");
 
-        std::vector<double> flattened_result2;
-        for (const auto& row : piecewisebernsteinpoly_resultu_) {
-            flattened_result2.insert(flattened_result2.end(), row.begin(), row.end());
+        // om
+        std::vector<std::vector<double>> solution_om_d(1, std::vector<double>(solution_om_.begin(), solution_om_.end()));
+        piecewisebernsteinpoly_result_om_ = PiecewiseBernsteinPoly(solution_om_d, tknots, final_time_);
+        // Flatten bernsteinpoly_om_result_
+        std::vector<double> flattened_result_om;
+        for (const auto& row : piecewisebernsteinpoly_result_om_) {
+            flattened_result_om.insert(flattened_result_om.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result2, "u.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_u_, "u_controlpoints.csv");
+        writeToCSV(final_time_, flattened_result_om, "om.csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_om_, "om_controlpoints.csv");
 
-        // Save continuity points
-        std::vector<double> continuity_times;
-        std::vector<double> continuity_values_x;
-        std::vector<double> continuity_values_x1;
-        std::vector<double> continuity_values_u;
-
-        for (int i = 1; i < M_; ++i) {
-            // The time for each continuity point is at the end of each segment
-            double time = tknots[i]; // Assuming tknots contain the segment boundaries
-            int index = i * (N_ + 1) - 1;
-
-            continuity_times.push_back(time);
-            continuity_values_x.push_back(solution_x_[index]);
-            continuity_values_x1.push_back(solution_x2_[index]);
-            continuity_values_u.push_back(solution_u_[index]);
+        std::vector<double> cont_times, cont_x1, cont_x2, cont_psi, cont_v, cont_om;
+        //auto tknots = generateTknots();  // already have this above
+        int segSize = N_ + 1;
+        for(int seg=1; seg < M_; ++seg){
+            // time at the end of segment `seg`
+            cont_times.push_back(tknots[seg]);
+            // index of the last control point in segment seg-1
+            int idx = seg * segSize - 1;
+            cont_x1.push_back(solution_x1_[idx]);
+            cont_x2.push_back(solution_x2_[idx]);
+            cont_psi.push_back(solution_psi_[idx]);
+            cont_v.push_back(solution_v_[idx]);
+            cont_om.push_back(solution_om_[idx]);
         }
 
-        writeToCSV(continuity_times, continuity_values_x, "x_continuity.csv");
-        writeToCSV(continuity_times, continuity_values_x1, "x1_continuity.csv");
-        writeToCSV(continuity_times, continuity_values_u, "u_continuity.csv");
+        // now write them out
+        writeToCSV(cont_times, cont_x1,  "x1_continuity.csv");
+        writeToCSV(cont_times, cont_x2,  "x2_continuity.csv");
+        writeToCSV(cont_times, cont_psi, "psi_continuity.csv");
+        writeToCSV(cont_times, cont_v,   "v_continuity.csv");
+        writeToCSV(cont_times, cont_om,  "om_continuity.csv");
+
+        {
+        std::ofstream obsFile("obstacles.csv");
+        obsFile << "x,y,radius\n";
+        int nObs = static_cast<int>(p_obs_.size())/2;
+        for(int o = 0; o < nObs; ++o){
+            double xo = p_obs_[o];
+            double yo = p_obs_[nObs + o];
+            obsFile << std::fixed << std::setprecision(6)
+                    << xo << "," << yo << "," << sep_ << "\n";
+        }
+        obsFile.close();
+    }
+
 
     }
-    // Getter for the solution
-    const std::vector<Number>& get_solution_x() const { return solution_x_; }
-
-    // Getter for the final objective value
-    Number get_final_obj_value() const { return final_obj_value_; }
 
 private:
-    int N_;
-    int M_;
-    double tf_;
-    double x_init_;
-    double x_final_;
-    double y_init_;
-    double y_final_;
-    double headin_;
-    double headout_;
-    double n_obs_;
-    double sep_;
-    double v_max_;
-    double omega_max_;
+    int N_, M_;
+    double tf_, x_init_, x_final_, y_init_, y_final_;
+    double headin_, headout_, n_obs_, sep_;
+    double v_max_, omega_max_;
     std::vector<double> p_obs_;
-    
-    PiecewiseBeBOT piecewiseBebot_; 
-    std::vector<Number> solution_u_;
-    std::vector<Number> solution_x2_;
-    std::vector<Number> solution_x_;
-    Number final_obj_value_;
     std::vector<double> final_time_;
-    std::vector<std::vector<double>> piecewisebernsteinpoly_resultu_;
-    std::vector<std::vector<double>> piecewisebernsteinpoly_resultx2_;
-    std::vector<std::vector<double>> piecewisebernsteinpoly_result_;
-
-    // Helper function to generate tknots
+    PiecewiseBeBOT piecewiseBebot_;
+    std::vector<std::vector<double>> piecewisebernsteinpoly_result_x1_;
+    std::vector<std::vector<double>> piecewisebernsteinpoly_result_x2_;
+    std::vector<std::vector<double>> piecewisebernsteinpoly_result_psi_;
+    std::vector<std::vector<double>> piecewisebernsteinpoly_result_v_;
+    std::vector<std::vector<double>> piecewisebernsteinpoly_result_om_;
+    std::vector<double> solution_x1_, solution_x2_, solution_psi_, solution_v_, solution_om_;
+    Number final_obj_value_;
     std::vector<double> generateTknots() {
-        std::vector<double> tknots;
-        //std::cout << "tf_ = " << tf_ << std::endl;
-        //std::cout << "M = " << M_ << std::endl;
-        double interval = tf_ / M_;
-        for (int i = 0; i <= M_; ++i) {
-            tknots.push_back(i * interval);
-        }
-        return tknots;
+        std::vector<double> t(M_ + 1);
+        double dt = tf_ / M_;
+        for (int i = 0; i <= M_; ++i) t[i] = i * dt;
+        return t;
     }
-public: 
 };
+
 int main() {
-    int N = 4;
-    int M = 5;
-    double tf = 10;
+    int N = 3;
+    int M = 3;
+    double tf = 10.0;
     double x_init = 0.0;
     double x_final = 10.0;
     double y_init = 0.0;
     double y_final = 10.0;
-    double heading = 1.0472;
+    double heading = 0.5236;
     double headout = 0.5236;
-    double n_obs = 2;
-    double sep = 0.5;
-    double v_max = 5;
-    double omega_max = 1;
-    std::vector<double> p_obs{ 1.5, 4.0, 6.0, 8.0, 2.0, 3.5, 6.0, 8.5 };
+    double n_obs = 2.0;
+    double sep =  0.5;
+    double v_max =  5.0;
+    double omega_max = 1.0;
+    std::vector<double> p_obs{1.5,4,6,8, 2.0,3.5,6.0,8.5};
 
-    SmartPtr<TNLP> pointSetProblem = new PointSetProblem(N, M, tf, x_init, x_final, y_init, y_final, heading, headout, n_obs, sep, v_max, omega_max, p_obs);
+    SmartPtr<TNLP> prob = new PointSetProblem(
+        N, M,
+        tf, x_init, x_final,
+        y_init, y_final,
+        heading, headout,
+        n_obs, sep,
+        v_max, omega_max,
+        p_obs
+    );
     SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
-
-    app->Options()->SetStringValue("linear_solver", "ma57");
-    // A smaller number pivots for sparsity, a larger number pivots for stability
-    //app->Options()->SetNumericValue("ma57_pivtol", 1e-8);//0.99 // 1e-8 // between 0 and 1
-    // Ipopt may increase pivtol as high as ma27_pivtolmax to get a more accurate solution to the linear system
-    //app->Options()->SetNumericValue("ma57_pivtolmax", 0.99);//0.99 // 0.0001 // between 0 and 1
-    // The initial integer workspace memory = liw_init_factor * memory required by unfactored system. 
-    // Ipopt will increase the workspace size by ma27_meminc_factor if required.
-    //app->Options()->SetNumericValue("ma57_liw_init_factor", 5.0); // 5.0 has to be 
-    // The initial real workspace memory = la_init_factor * memory required by unfactored system. 
-    // Ipopt will increase the workspace size by ma27_meminc_factor if required
-    //app->Options()->SetNumericValue("ma57_la_init_factor", 5.0); // 5.0
-    // If the integer or real workspace is not large enough, Ipopt will increase its size by this factor.
-    //app->Options()->SetNumericValue("ma57_meminc_factor", 5.0); // 5.0
-
-    app->Options()->SetStringValue("mu_strategy", "adaptive");
-    
-    app->Options()->SetStringValue("gradient_approximation", "finite-difference-values");
-    app->Options()->SetStringValue("jacobian_approximation", "finite-difference-values");
-
-    // Set the Hessian approximation method to limited-memory
-    app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-
-    // Adjust the maximum number of iterations
-    app->Options()->SetIntegerValue("max_iter", 5000); // Change to my desired maximum iterations
-
-    // Adjust the convergence tolerance
-    app->Options()->SetNumericValue("tol", 1e-6); // Change to my desired tolerance
-
-
-
+    app->Options()->SetStringValue("linear_solver","ma57");
+    app->Options()->SetStringValue("mu_strategy","adaptive");
+    app->Options()->SetStringValue("gradient_approximation","finite-difference-values");
+    app->Options()->SetStringValue("jacobian_approximation","finite-difference-values");
+    app->Options()->SetStringValue("hessian_approximation","limited-memory");
+    app->Options()->SetIntegerValue("max_iter",5000);
+    app->Options()->SetNumericValue("tol",1e-6);
     app->RethrowNonIpoptException(true);
-    ApplicationReturnStatus status = app->Initialize();
-    if (status != Solve_Succeeded) {
-        std::cout << "IPOPT initialization failed!" << std::endl;
+
+    if (app->Initialize() != Solve_Succeeded) {
+        std::cerr << "IPOPT initialization failed!" << std::endl;
         return -1;
     }
 
-    status = app->OptimizeTNLP(pointSetProblem);
+    ApplicationReturnStatus status = app->OptimizeTNLP(prob);
 
     if (status == Solve_Succeeded || status == Solved_To_Acceptable_Level) {
-        // Process optimization results here
-        const auto& solution_x = static_cast<PointSetProblem*>(GetRawPtr(pointSetProblem))->get_solution_x();
-        Number final_obj_value = static_cast<PointSetProblem*>(GetRawPtr(pointSetProblem))->get_final_obj_value();
-    
-        std::cout << "Optimal Solution (x): ";
-        for (Index i = 0; i < solution_x.size(); i++) {
-            std::cout << solution_x[i] << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "Optimal Objective Value: " << final_obj_value << std::endl;
+        auto solver = static_cast<PointSetProblem*>(GetRawPtr(prob));
+        std::cout << "Optimization succeeded. Objective="
+                  << solver->get_final_obj_value()
+                  << std::endl;
     } else {
-        std::cout << "IPOPT optimization failed with status " << status << std::endl;
+        std::cout << "Optimization failed." << std::endl;
     }
 
     return 0;

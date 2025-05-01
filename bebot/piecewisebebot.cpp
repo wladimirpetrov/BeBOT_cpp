@@ -1,10 +1,9 @@
 #include "../include/piecewisebebot.h"
 #include "../include/bernsteindifferentialmatrix.h"
 #include "../include/degelevmatrix.h"
-#include "mkl.h"
-#include <iostream>
 #include <vector>
 #include <cmath>
+#include <limits>
 
 PiecewiseBeBOT::PiecewiseBeBOT(int N, const std::vector<double>& tknots)
     : N(N), originalTknots(tknots) {
@@ -13,36 +12,57 @@ PiecewiseBeBOT::PiecewiseBeBOT(int N, const std::vector<double>& tknots)
 
 void PiecewiseBeBOT::transformTknots() {
     transformedTknots.clear();
-    for (size_t i = 0; i < originalTknots.size() - 1; ++i) {
-        transformedTknots.push_back({originalTknots[i], originalTknots[i + 1]});
+    for (size_t i = 0; i + 1 < originalTknots.size(); ++i) {
+        transformedTknots.emplace_back(
+            std::vector<double>{ originalTknots[i], originalTknots[i+1] } );
     }
 }
 
 void PiecewiseBeBOT::calculate() {
     transformTknots();
-    double T = originalTknots.back() - originalTknots.front();
-    int M = transformedTknots.size();
-    tnodes.resize((N + 1) * M);
-    w.resize((N + 1) * M, T / ((N + 1) * M));
-    Dm_flat.resize((N + 1) * (N + 1) * M);
+    const double T = originalTknots.back() - originalTknots.front();
+    const int M = static_cast<int>(transformedTknots.size());
+    const int dim = N + 1;
 
-    for (int segment = 0; segment < M; ++segment) {
-        double start = transformedTknots[segment][0];
-        double end = transformedTknots[segment][1];
-        double segmentLength = end - start;
+    // allocate outputs
+    tnodes.resize(dim * M);
+    w.assign(dim * M, T / (dim * M));
+    Dm_flat.assign(dim * dim * M, 0.0);
 
-        for (int i = 0; i <= N; ++i) {
-            tnodes[segment * (N + 1) + i] = start + (segmentLength * i / N);
+    for (int seg = 0; seg < M; ++seg) {
+        double t0 = transformedTknots[seg][0];
+        double t1 = transformedTknots[seg][1];
+        double segLen = t1 - t0;
+        double eps = std::numeric_limits<double>::epsilon() * segLen;
+
+        // compute local nodes with MATLAB-style eps adjustment
+        double a = (seg == 0 ? t0 : t0 + eps);
+        double b = (seg == M-1 ? t1 : t1 - eps);
+        for (int i = 0; i < dim; ++i) {
+            tnodes[seg * dim + i] = a + (b - a) * (static_cast<double>(i) / N);
         }
 
-        std::vector<double> Dm_temp = BernsteinDifferentiationMatrix(N, segmentLength);
-        std::vector<double> ElevMatrix = DegElevMatrix(N - 1, N);
+        // get differentiation and degree-elevation matrices
+        std::vector<double> Dm_temp = BernsteinDifferentiationMatrix(N, segLen);  // size dim×dim
+        std::vector<double> Elev    = DegElevMatrix(N-1, N);                     // size dim×dim
 
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-                    N + 1, N + 1, N + 1,
-                    1.0, Dm_temp.data(), N + 1,
-                    ElevMatrix.data(), N + 1,
-                    0.0, &Dm_flat[segment * (N + 1) * (N + 1)], N + 1);
+        // compute block = Dm_temp * Elev into blockDm
+        std::vector<double> blockDm(dim * dim, 0.0);
+        for (int i = 0; i < dim; ++i) {
+            for (int j = 0; j < dim; ++j) {
+                double sum = 0.0;
+                for (int k = 0; k < dim; ++k) {
+                    sum += Dm_temp[i*dim + k] * Elev[k*dim + j];
+                }
+                blockDm[i*dim + j] = sum;
+            }
+        }
+
+        // copy blockDm into block diagonal of Dm_flat
+        size_t base = static_cast<size_t>(seg) * dim * dim;
+        for (size_t k = 0; k < static_cast<size_t>(dim*dim); ++k) {
+            Dm_flat[base + k] = blockDm[k];
+        }
     }
 }
 
@@ -55,20 +75,19 @@ std::vector<double> PiecewiseBeBOT::getWeights() const {
 }
 
 std::vector<std::vector<double>> PiecewiseBeBOT::getDifferentiationMatrix() const {
-    // Convert Dm_flat back to 2D matrix if needed for compatibility
-    int totalSize = (N + 1) * originalTknots.size() - 1; // Adjust for segments
-    std::vector<std::vector<double>> Dm_2D(totalSize, std::vector<double>(totalSize, 0.0));
-    int M = transformedTknots.size();
-
-    for (int segment = 0; segment < M; ++segment) {
-        for (int i = 0; i < N + 1; ++i) {
-            for (int j = 0; j < N + 1; ++j) {
-                Dm_2D[segment * (N + 1) + i][segment * (N + 1) + j] = Dm_flat[segment * (N + 1) * (N + 1) + i * (N + 1) + j];
+    const int M = static_cast<int>(transformedTknots.size());
+    const int dim = N + 1;
+    const int total = dim * M;
+    std::vector<std::vector<double>> Dm2D(total, std::vector<double>(total, 0.0));
+    for (int seg = 0; seg < M; ++seg) {
+        size_t base = static_cast<size_t>(seg) * dim * dim;
+        for (int i = 0; i < dim; ++i) {
+            for (int j = 0; j < dim; ++j) {
+                Dm2D[seg*dim + i][seg*dim + j] = Dm_flat[base + i*dim + j];
             }
         }
     }
-
-    return Dm_2D;
+    return Dm2D;
 }
 
 const std::vector<double>& PiecewiseBeBOT::getDifferentiationMatrixFlat() const {
