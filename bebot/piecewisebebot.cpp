@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <limits>
+#include "mkl.h"
 
 PiecewiseBeBOT::PiecewiseBeBOT(int N, const std::vector<double>& tknots)
     : N(N), originalTknots(tknots) {
@@ -27,7 +28,7 @@ void PiecewiseBeBOT::calculate() {
     // allocate outputs
     tnodes.resize(dim * M);
     w.assign(dim * M, T / (dim * M));
-    Dm_flat.assign(dim * dim * M, 0.0);
+    Dm_flat.assign(static_cast<size_t>(dim) * dim * M, 0.0);
 
     for (int seg = 0; seg < M; ++seg) {
         double t0 = transformedTknots[seg][0];
@@ -46,17 +47,18 @@ void PiecewiseBeBOT::calculate() {
         std::vector<double> Dm_temp = BernsteinDifferentiationMatrix(N, segLen);  // size dim×dim
         std::vector<double> Elev    = DegElevMatrix(N-1, N);                     // size dim×dim
 
-        // compute block = Dm_temp * Elev into blockDm
-        std::vector<double> blockDm(dim * dim, 0.0);
-        for (int i = 0; i < dim; ++i) {
-            for (int j = 0; j < dim; ++j) {
-                double sum = 0.0;
-                for (int k = 0; k < dim; ++k) {
-                    sum += Dm_temp[i*dim + k] * Elev[k*dim + j];
-                }
-                blockDm[i*dim + j] = sum;
-            }
-        }
+        // compute block = Dm_temp * Elev using MKL
+        std::vector<double> blockDm(static_cast<size_t>(dim) * dim, 0.0);
+        cblas_dgemm(CblasRowMajor,
+                    CblasNoTrans, CblasNoTrans,
+                    dim,      // rows of Dm_temp
+                    dim,      // columns of Elev
+                    dim,      // inner dimension
+                    1.0,      // alpha
+                    Dm_temp.data(), dim,
+                    Elev.data(),    dim,
+                    0.0,      // beta
+                    blockDm.data(), dim);
 
         // copy blockDm into block diagonal of Dm_flat
         size_t base = static_cast<size_t>(seg) * dim * dim;

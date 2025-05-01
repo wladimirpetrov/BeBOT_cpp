@@ -177,140 +177,61 @@ public:
     }
 
     virtual bool eval_g(Index n, const Number* x, bool, Index m, Number* g) override {
-        //
-        // 1) Extract final time and rebuild the knot vector
-        //
+        // 1) Extract final time and rebuild knots
         tf_ = x[n-1];
-        //std::cout << "[DBG] tf_ = " << tf_ << std::endl;
-
         auto tknots = generateTknots();
-        //std::cout << "[DBG] tknots = ";
-        //for (double tt : tknots) std::cout << tt << " ";
-        //std::cout << std::endl;
-
-        //
-        // 2) Reconstruct the PiecewiseBeBOT and get its full block‐diagonal Dm
-        //
+        // 2) Reconstruct PiecewiseBeBOT
         piecewiseBebot_ = PiecewiseBeBOT(N_, tknots);
-        //std::cout << "[DBG] piecewiseBebot_ constructed" << std::endl;
-
-        // get the full 2D differentiation matrix (size = (N+1)*M by (N+1)*M)
-        auto Dm2D = piecewiseBebot_.getDifferentiationMatrix();
+        piecewiseBebot_.calculate();
+        // 3) Get flat differentiation matrix
+        std::vector<double> Dm_flat = piecewiseBebot_.getDifferentiationMatrixFlat();
         int dim  = N_ + 1;
         int nSeg = M_ * dim;
-        //std::cout << "[DBG] Full Dm2D (" << nSeg << "×" << nSeg << ")\n";
 
-        // print the full Dm2D block-diagonal matrix
-        // for (int r = 0; r < nSeg; ++r) {
-        //     std::cout << "  ";
-        //     for (int c = 0; c < nSeg; ++c) {
-        //         std::cout << std::setw(10)
-        //                 << std::fixed << std::setprecision(6)
-        //                 << Dm2D[r][c] << " ";
-        //     }
-        //     std::cout << "\n";
-        // }
+        // 4) Slice out x1, x2, psi, V, om
+        std::vector<double> x1(x,      x + nSeg);
+        std::vector<double> x2(x+nSeg, x + 2*nSeg);
+        std::vector<double> psi(x+2*nSeg, x + 3*nSeg);
+        std::vector<double> V  (x+3*nSeg, x + 4*nSeg);
+        std::vector<double> om (x+4*nSeg, x + 5*nSeg);
 
-        //
-        // 3) Slice out x1, x2, psi, V and om from the decision vector x
-        //
-        std::vector<double> x1   (x,             x + nSeg);
-        std::vector<double> x2   (x + nSeg,      x + 2*nSeg);
-        std::vector<double> psi  (x + 2*nSeg,    x + 3*nSeg);
-        std::vector<double> V    (x + 3*nSeg,    x + 4*nSeg);
-        std::vector<double> om   (x + 4*nSeg,    x + 5*nSeg);
-        // std::cout << "[DEBUG] x1: ";
-        // for (Index i = 0; i < nSeg; ++i) std::cout << x1[i] << " ";
-        // std::cout << "\n[DEBUG] x2: ";
-        // for (Index i = 0; i < nSeg; ++i) std::cout << x2[i] << " ";
-        // std::cout << "\n[DEBUG] psi: ";
-        // for (Index i = 0; i < nSeg; ++i) std::cout << psi[i] << " ";
-        // std::cout << "\n[DEBUG] V:   ";
-        // for (Index i = 0; i < nSeg; ++i) std::cout << V[i] << " ";
-        // std::cout << "\n[DEBUG] om:  ";
-        // for (Index i = 0; i < nSeg; ++i) std::cout << om[i] << " ";
-        // std::cout << "\n";
-
-        //
-        // 4) Allocate storage for the derivatives
-        //
-        std::vector<double> Dx1(nSeg, 0.0), Dx2(nSeg, 0.0), Dpsi(nSeg, 0.0);
-
-        //
-        // 5) Manually multiply each block of Dm2D^T × the corresponding slice
-        for (int seg = 0; seg < M_; ++seg) {
+        // 5) Use MKL to compute Dx1, Dx2, Dpsi via three gemv calls per segment
+        std::vector<double> Dx1(nSeg), Dx2(nSeg), Dpsi(nSeg);
+        for(int seg = 0; seg < M_; ++seg){
             int row0 = seg * dim;
             int col0 = seg * dim;
-            for (int i = 0; i < dim; ++i) {
-                double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0;
-                for (int j = 0; j < dim; ++j) {
-                    // note the swapped indices: we're reading the (j,i) entry instead of (i,j)
-                    double Dm_ji = Dm2D[col0 + j][ row0 + i ];
-                    sum1 += Dm_ji * x1[col0 + j];
-                    sum2 += Dm_ji * x2[col0 + j];
-                    sum3 += Dm_ji * psi[col0 + j];
-                }
-                Dx1[row0 + i]  = sum1;
-                Dx2[row0 + i]  = sum2;
-                Dpsi[row0 + i] = sum3;
-            }
+            double* A = Dm_flat.data() + seg*dim*dim;
+            // Dx1[row0:row0+dim] = A^T * x1[col0:col0+dim]
+            cblas_dgemv(CblasRowMajor, CblasTrans,
+                        dim, dim,
+                        1.0, A, dim,
+                        x1.data()+col0, 1,
+                        0.0, Dx1.data()+row0, 1);
+            // Dx2:
+            cblas_dgemv(CblasRowMajor, CblasTrans,
+                        dim, dim,
+                        1.0, A, dim,
+                        x2.data()+col0, 1,
+                        0.0, Dx2.data()+row0, 1);
+            // Dpsi:
+            cblas_dgemv(CblasRowMajor, CblasTrans,
+                        dim, dim,
+                        1.0, A, dim,
+                        psi.data()+col0, 1,
+                        0.0, Dpsi.data()+row0, 1);
         }
 
-        // print the full derivative vectors:
-        // std::cout << "[DEBUG] full Dx1 (" << nSeg << "): ";
-        // for (int i = 0; i < nSeg; ++i)
-        //     std::cout << std::fixed << std::setprecision(6) << Dx1[i] << " ";
-        // std::cout << "\n";
-
-        // std::cout << "[DEBUG] full Dx2 (" << nSeg << "): ";
-        // for (int i = 0; i < nSeg; ++i)
-        //     std::cout << std::fixed << std::setprecision(6) << Dx2[i] << " ";
-        // std::cout << "\n";
-
-        // std::cout << "[DEBUG] full Dpsi (" << nSeg << "): ";
-        // for (int i = 0; i < nSeg; ++i)
-        //     std::cout << std::fixed << std::setprecision(6) << Dpsi[i] << " ";
-        // std::cout << "\n";
-
-
-        //
-        // 6) Fill in the dynamic constraints: 
-        //    Dx1 - V*cos(psi) = 0,  Dx2 - V*sin(psi) = 0,  Dpsi - om = 0
-        //
-        for (Index i = 0; i < nSeg; ++i) {
-            g[i]           = Dx1[i]   - V[i]   * std::cos( psi[i]);
-            g[nSeg + i]    = Dx2[i]   - V[i]   * std::sin( psi[i]);
-            g[2*nSeg + i]  = Dpsi[i]  - om[i];
+        // 6) Dynamic constraints
+        for(int i=0; i<nSeg; ++i){
+            g[i]           = Dx1[i] - V[i]   * std::cos(psi[i]);
+            g[nSeg+i]      = Dx2[i] - V[i]   * std::sin(psi[i]);
+            g[2*nSeg+i]    = Dpsi[i] - om[i];
         }
 
-        // print the entire first dynamic vector:
-        // std::cout << "[DEBUG dyn1] ";
-        // for (Index i = 0; i < nSeg; ++i) {
-        //     std::cout << g[i] << " ";
-        // }
-        // std::cout << "\n";
-
-        // // print the entire second dynamic vector:
-        // std::cout << "[DEBUG dyn2] ";
-        // for (Index i = 0; i < nSeg; ++i) {
-        //     std::cout << g[nSeg + i] << " ";
-        // }
-        // std::cout << "\n";
-
-        // // print the entire third dynamic vector:
-        // std::cout << "[DEBUG dyn3] ";
-        // for (Index i = 0; i < nSeg; ++i) {
-        //     std::cout << g[2*nSeg + i] << " ";
-        // }
-        // std::cout << "\n";
-
-        //
-        // 7) Continuity constraints between segments
-        //
-        Index idx = 3 * nSeg;
-        for (int seg = 0; seg < M_ - 1; ++seg) {
-            int endN = (seg + 1) * dim - 1;
-            int nxt  = endN + 1;
+        // 7) Continuity
+        Index idx = 3*nSeg;
+        for(int seg=0; seg<M_-1; ++seg){
+            int endN = (seg+1)*dim -1, nxt = endN+1;
             g[idx++] = x1[endN]  - x1[nxt];
             g[idx++] = x2[endN]  - x2[nxt];
             g[idx++] = psi[endN] - psi[nxt];
@@ -318,85 +239,26 @@ public:
             g[idx++] = om[endN]  - om[nxt];
         }
 
-        //
-        // 8) Obstacle‐avoidance constraints
-        //
+        // 8) Obstacle avoidance (unchanged)
         Index degEl = 4 * N_;
         Index Lobs  = (2 * degEl + 1) * M_;
-        Index nObs  = p_obs_.size() / 2;
-        idx = 3 * nSeg + (M_ - 1) * 5;
+        Index nObs  = p_obs_.size()/2;
+        idx = 3*nSeg + (M_-1)*5;
         auto x1_el = PiecewiseDegElevMatrix(x1, M_, N_, degEl);
         auto x2_el = PiecewiseDegElevMatrix(x2, M_, N_, degEl);
-
-        // ——— DEBUG: print the full elevated control‐point vectors ———
-            // std::cout << "[DEBUG] x1_el (" << x1_el.size() << "): ";
-            // for (size_t i = 0; i < x1_el.size(); ++i) {
-            //     std::cout << std::fixed << std::setprecision(6) << x1_el[i] 
-            //             << (i + 1 < x1_el.size() ? " " : "\n");
-            // }
-
-            // std::cout << "[DEBUG] x2_el (" << x2_el.size() << "): ";
-            // for (size_t i = 0; i < x2_el.size(); ++i) {
-            //     std::cout << std::fixed << std::setprecision(6) << x2_el[i] 
-            //             << (i + 1 < x2_el.size() ? " " : "\n");
-            // }
-
-        double sep2 = sep_ * sep_;
-        for (Index o = 0; o < nObs; ++o) {
-            // split the vector in two halves instead of interleaving
-            double xo = p_obs_[o];           // 1.5, then 4.0, then 6.0, then 8.0
-            double yo = p_obs_[nObs + o];    // 2.0,  3.5,  6.0,  8.5
-
+        double sep2 = sep_*sep_;
+        for(int o=0; o<nObs; ++o){
+            double xo = p_obs_[o], yo = p_obs_[nObs+o];
             std::vector<double> dx(x1_el.size()), dy(x2_el.size());
-            for (size_t i = 0; i < dx.size(); ++i) {
-                dx[i] = x1_el[i] - xo;
-                dy[i] = x2_el[i] - yo;
+            for(size_t i=0;i<dx.size();++i){
+                dx[i] = x1_el[i]-xo; dy[i] = x2_el[i]-yo;
             }
-
-            // ——— DEBUG: print dx and dy ———
-            // std::cout << "[DEBUG] dx (obs " << o << ") size=" << dx.size() << ":\n    ";
-            // for (size_t i = 0; i < dx.size(); ++i) {
-            //     std::cout << std::fixed << std::setprecision(6) << dx[i]
-            //             << (i+1<dx.size()?" ":"\n");
-            //     if ((i+1) % (degEl+1) == 0 && i+1<dx.size()) std::cout << "    ";
-            // }
-
-            // std::cout << "[DEBUG] dy (obs " << o << ") size=" << dy.size() << ":\n    ";
-            // for (size_t i = 0; i < dy.size(); ++i) {
-            //     std::cout << std::fixed << std::setprecision(6) << dy[i]
-            //             << (i+1<dy.size()?" ":"\n");
-            //     if ((i+1) % (degEl+1) == 0 && i+1<dy.size()) std::cout << "    ";
-            // }
-
             auto bx = PiecewiseBernsteinProduct(dx, dx, M_, degEl);
             auto by = PiecewiseBernsteinProduct(dy, dy, M_, degEl);
-
-            // ——— DEBUG: print the full Bernstein‐product vectors ———
-            // std::cout << "[DEBUG] bx (" << bx.size() << "): ";
-            // for (size_t i = 0; i < bx.size(); ++i) {
-            //     std::cout << std::fixed << std::setprecision(6) << bx[i]
-            //             << (i + 1 < bx.size() ? " " : "\n");
-            // }
-
-            // std::cout << "[DEBUG] by (" << by.size() << "): ";
-            // for (size_t i = 0; i < by.size(); ++i) {
-            //     std::cout << std::fixed << std::setprecision(6) << by[i]
-            //             << (i + 1 < by.size() ? " " : "\n");
-            // }
-
-            for (size_t i = 0; i < bx.size(); ++i) {
-                g[idx++] = -(bx[i] + by[i]) + sep2;
+            for(size_t i=0;i<bx.size();++i){
+                g[idx++] = -(bx[i]+by[i]) + sep2;
             }
         }
-        // ——— Now print the entire g vector ———
-        // std::cout << "[DEBUG] full g (" << m << " entries):\n    ";
-        // for (Index i = 0; i < m; ++i) {
-        //     std::cout << std::fixed << std::setprecision(6) << g[i];
-        //     if (i + 1 < m) std::cout << ", ";
-        //     if ((i + 1) % dim == 0 && i + 1 < m)
-        //         std::cout << "\n    ";  // line break every 'dim' entries
-        // }
-        // std::cout << "\n";
         return true;
     }
 
@@ -561,8 +423,8 @@ private:
 };
 
 int main() {
-    int N = 3;
-    int M = 3;
+    int N = 5;
+    int M = 5;
     double tf = 10.0;
     double x_init = 0.0;
     double x_final = 10.0;
