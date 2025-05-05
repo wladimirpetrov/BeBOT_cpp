@@ -108,5 +108,36 @@ plt.grid(True)
 plt.legend()
 
 
+#── 5) v̇ (linear acceleration) vs time ─────────────────────────────────────────
+t_vdot, vdot = read_data('vdot.csv')
+cp_t_vdot, cp_vdot = read_data('vdot_controlpoints.csv')
+cont_t_vdot, cont_vdot = read_data('vdot_continuity.csv')
+
+plt.figure(figsize=(8,4))
+plt.plot(t_vdot, vdot, ':', linewidth=0.8, marker='.', label='v̇')
+plt.scatter(cp_t_vdot, cp_vdot, facecolors='none', edgecolors='C0', s=80, label='Control Points')
+plt.scatter(cont_t_vdot, cont_vdot, facecolors='none', edgecolors='k', s=120, label='Continuity Points')
+plt.xlabel('Time')
+plt.ylabel('v̇ (m/s²)')
+plt.title('Linear Acceleration v̇ over Time')
+plt.grid(True)
+plt.legend()
+
+
+#── 6) ω̇ (angular acceleration) vs time ─────────────────────────────────────────
+t_omegadot, omegadot = read_data('omegadot.csv')
+cp_t_omegadot, cp_omegadot = read_data('omegadot_controlpoints.csv')
+cont_t_omegadot, cont_omegadot = read_data('omegadot_continuity.csv')
+
+plt.figure(figsize=(8,4))
+plt.plot(t_omegadot, omegadot, ':', linewidth=0.8, marker='.', label='ω̇')
+plt.scatter(cp_t_omegadot, cp_omegadot, facecolors='none', edgecolors='C0', s=80, label='Control Points')
+plt.scatter(cont_t_omegadot, cont_omegadot, facecolors='none', edgecolors='k', s=120, label='Continuity Points')
+plt.xlabel('Time')
+plt.ylabel('ω̇ (rad/s²)')
+plt.title('Angular Acceleration ω̇ over Time')
+plt.grid(True)
+plt.legend()
+
 plt.show()
 

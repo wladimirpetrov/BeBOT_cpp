@@ -56,60 +56,81 @@ public:
 
     // TNLP overrides
     virtual bool get_nlp_info(Index& n, Index& m,
-                              Index& nnz_jac_g, Index& nnz_h_lag,
-                              IndexStyleEnum& index_style) override {
-        Index nSeg  = M_ * (N_ + 1);
-        n = 5 * nSeg + 1;
-        Index nDyn  = 3 * nSeg;
-        Index nCont = (M_ - 1) * 5;
-        Index degEl = 4 * N_;
-        Index Lobs  = (2 * degEl + 1) * M_;
-        Index nObs  = static_cast<Index>(p_obs_.size() / 2);
-        Index nObsC = nObs * Lobs;
-        m = nDyn + nCont + nObsC;
-        std::cout 
-        << "[DEBUG get_nlp_info] n = " << n 
-        << ", m = " << m 
-        << std::endl;
-        nnz_jac_g = n * m;
-        nnz_h_lag = 0;
-        index_style = TNLP::C_STYLE;
+                            Index& nnz_jac_g, Index& nnz_h_lag,
+                            IndexStyleEnum& index_style) override
+    {
+        Index nSeg     = M_*(N_+1);
+        n              = 5*nSeg + 1;
+        Index nDyn     = 3*nSeg;
+        Index nCont    = (M_-1)*5;
+        Index nAccCont = (M_-1)*2;        // NEW: accelerate‐continuity
+        Index degEl    = 4*N_;
+        Index Lobs     = (2*degEl + 1)*M_;
+        Index nObs     = static_cast<Index>(p_obs_.size()/2);
+        Index nObsC    = nObs * Lobs;
+        m               = nDyn + nCont + nAccCont + nObsC;  // UPDATED total constraints
+
+        std::cout << "[DEBUG get_nlp_info] n="<<n<<" m="<<m<<std::endl;
+        nnz_jac_g     = n*m;  // dense for FD
+        nnz_h_lag     = 0;
+        index_style   = TNLP::C_STYLE;
         return true;
     }
 
     virtual bool get_bounds_info(Index /*n*/, Number* x_l, Number* x_u,
-                                 Index /*m*/, Number* g_l, Number* g_u) override {
-        Index nSeg   = M_ * (N_ + 1);
-        Index totalX = 5 * nSeg + 1;
-        // variables
-        for (Index i = 0; i < totalX; ++i) {
-            x_l[i] = 0.0;
-            x_u[i] =  tf_; 
+                               Index /*m*/, Number* g_l, Number* g_u) override
+    {
+        Index nSeg   = M_*(N_+1);
+        Index totalX = 5*nSeg + 1;
+        // --- variable bounds ---
+        for(Index i=0;i<totalX-1;++i){
+        x_l[i]=0.0;             // all control points ≥0
+        x_u[i]= tf_;            // ≤ final time
         }
-        // boundary conditions
-        x_l[0] = x_u[0] = x_init_;
-        x_l[nSeg-1] = x_u[nSeg-1] = x_final_;
+        x_l[0]=x_u[0]=x_init_;
+        x_l[nSeg-1]=x_u[nSeg-1]=x_final_;
         Index off2 = nSeg;
-        x_l[off2] = x_u[off2] = y_init_;
-        x_l[off2+nSeg-1] = x_u[off2+nSeg-1] = y_final_;
-        Index off3 = 2 * nSeg;
-        x_l[off3] = x_u[off3] = headin_;
-        x_l[off3+nSeg-1] = x_u[off3+nSeg-1] = headout_;
-        Index off4 = 3 * nSeg;
-        for (Index i = off4; i < off4 + nSeg; ++i) { x_l[i] = -v_max_; x_u[i] = v_max_; }
-        Index off5 = 4 * nSeg;
-        for (Index i = off5; i < off5 + nSeg; ++i) { x_l[i] = -omega_max_; x_u[i] = omega_max_; }
-        // constraints
-        Index nDyn = 3 * nSeg;
-        for (Index i = 0; i < nDyn; ++i) { g_l[i] = 0.0; g_u[i] = 0.0; }
-        Index idx = nDyn;
-        for (int seg = 0; seg < M_-1; ++seg)
-            for (int c = 0; c < 5; ++c) { g_l[idx] = 0.0; g_u[idx] = 0.0; ++idx; }
-        Index degEl = 4 * N_;
-        Index Lobs  = (2 * degEl + 1) * M_;
-        Index nObs  = p_obs_.size() / 2;
+        x_l[off2]=x_u[off2]=y_init_;
+        x_l[off2+nSeg-1]=x_u[off2+nSeg-1]=y_final_;
+        Index off3=2*nSeg;
+        x_l[off3]=x_u[off3]=headin_;
+        x_l[off3+nSeg-1]=x_u[off3+nSeg-1]=headout_;
+        Index off4=3*nSeg;
+        for(Index i=off4;i<off4+nSeg;++i){
+        x_l[i]=-v_max_; x_u[i]=v_max_;
+        }
+        Index off5=4*nSeg;
+        for(Index i=off5;i<off5+nSeg;++i){
+        x_l[i]=-omega_max_; x_u[i]=omega_max_;
+        }
+        // final time
+        x_l[totalX-1]=0.0; x_u[totalX-1]= tf_;
+
+        // --- constraint bounds ---
+        Index mDyn = 3*nSeg;
+        Index idx=0;
+        // 1) dynamics (equality)
+        for(Index i=0;i<mDyn;++i){
+        g_l[idx]=0.0; g_u[idx]=0.0; ++idx;
+        }
+        // 2) continuity of x1,x2,psi,V,omega (equality)
+        for(int seg=0; seg<M_-1; ++seg){
+            for(int c=0; c<5; ++c){
+                g_l[idx]=0.0; g_u[idx]=0.0; ++idx;
+            }
+        }
+        // 3) continuity of accelerations (NEW) (equality)
+        for(int seg=0; seg<M_-1; ++seg){
+            for(int c=0; c<2; ++c){
+                g_l[idx]=0.0; g_u[idx]=0.0; ++idx;
+            }
+        }
+        // 4) obstacle‐avoidance (ineq)
+        Index degEl = 4*N_;
+        Index Lobs  = (2*degEl+1)*M_;
+        Index nObs  = p_obs_.size()/2;
         Index nObsC = nObs * Lobs;
-        for (Index k = 0; k < nObsC; ++k) {
+        for(Index k=0;k<nObsC;++k){
             g_l[idx + k] = -std::numeric_limits<double>::infinity();
             g_u[idx + k] = 0.0;
         }
@@ -177,58 +198,45 @@ public:
     }
 
     virtual bool eval_g(Index n, const Number* x, bool, Index m, Number* g) override {
-        // 1) Extract final time and rebuild knots
-        tf_ = x[n-1];
-        auto tknots = generateTknots();
-        // 2) Reconstruct PiecewiseBeBOT
-        piecewiseBebot_ = PiecewiseBeBOT(N_, tknots);
-        piecewiseBebot_.calculate();
-        // 3) Get flat differentiation matrix
-        std::vector<double> Dm_flat = piecewiseBebot_.getDifferentiationMatrixFlat();
-        int dim  = N_ + 1;
-        int nSeg = M_ * dim;
-
-        // 4) Slice out x1, x2, psi, V, om
+        int dim   = N_+1;
+        int nSeg  = M_*dim;
+        // 1) slice out variables
         std::vector<double> x1(x,      x + nSeg);
         std::vector<double> x2(x+nSeg, x + 2*nSeg);
         std::vector<double> psi(x+2*nSeg, x + 3*nSeg);
         std::vector<double> V  (x+3*nSeg, x + 4*nSeg);
         std::vector<double> om (x+4*nSeg, x + 5*nSeg);
+        // 2) rebuild Bézier and differentiation matrix
+        tf_ = x[n-1];
+        auto tknots = generateTknots();
+        piecewiseBebot_ = PiecewiseBeBOT(N_, tknots);
+        piecewiseBebot_.calculate();
+        std::vector<double> Dm_flat = piecewiseBebot_.getDifferentiationMatrixFlat();
 
-        // 5) Use MKL to compute Dx1, Dx2, Dpsi via three gemv calls per segment
+        // 3) compute Dx1, Dx2, Dpsi via MKL
         std::vector<double> Dx1(nSeg), Dx2(nSeg), Dpsi(nSeg);
-        for(int seg = 0; seg < M_; ++seg){
-            int row0 = seg * dim;
-            int col0 = seg * dim;
-            double* A = Dm_flat.data() + seg*dim*dim;
-            // Dx1[row0:row0+dim] = A^T * x1[col0:col0+dim]
-            cblas_dgemv(CblasRowMajor, CblasTrans,
-                        dim, dim,
-                        1.0, A, dim,
-                        x1.data()+col0, 1,
-                        0.0, Dx1.data()+row0, 1);
-            // Dx2:
-            cblas_dgemv(CblasRowMajor, CblasTrans,
-                        dim, dim,
-                        1.0, A, dim,
-                        x2.data()+col0, 1,
-                        0.0, Dx2.data()+row0, 1);
-            // Dpsi:
-            cblas_dgemv(CblasRowMajor, CblasTrans,
-                        dim, dim,
-                        1.0, A, dim,
-                        psi.data()+col0, 1,
-                        0.0, Dpsi.data()+row0, 1);
+        for(int seg=0; seg<M_; ++seg){
+        int row0 = seg*dim, col0 = seg*dim;
+        double* A = Dm_flat.data() + seg*dim*dim;
+        cblas_dgemv(CblasRowMajor, CblasTrans, dim, dim,
+                    1.0, A, dim,
+                    x1.data()+col0, 1, 0.0, Dx1.data()+row0, 1);
+        cblas_dgemv(CblasRowMajor, CblasTrans, dim, dim,
+                    1.0, A, dim,
+                    x2.data()+col0, 1, 0.0, Dx2.data()+row0, 1);
+        cblas_dgemv(CblasRowMajor, CblasTrans, dim, dim,
+                    1.0, A, dim,
+                    psi.data()+col0,1, 0.0, Dpsi.data()+row0,1);
         }
 
-        // 6) Dynamic constraints
-        for(int i=0; i<nSeg; ++i){
-            g[i]           = Dx1[i] - V[i]   * std::cos(psi[i]);
-            g[nSeg+i]      = Dx2[i] - V[i]   * std::sin(psi[i]);
+        // 4) dynamics constraints
+        for(int i=0;i<nSeg;++i){
+            g[i]           = Dx1[i] - V[i]*std::cos(psi[i]);
+            g[nSeg+i]      = Dx2[i] - V[i]*std::sin(psi[i]);
             g[2*nSeg+i]    = Dpsi[i] - om[i];
         }
 
-        // 7) Continuity
+        // 5) continuity of states (x1,x2,psi,V,omega)
         Index idx = 3*nSeg;
         for(int seg=0; seg<M_-1; ++seg){
             int endN = (seg+1)*dim -1, nxt = endN+1;
@@ -239,19 +247,88 @@ public:
             g[idx++] = om[endN]  - om[nxt];
         }
 
-        // 8) Obstacle avoidance (unchanged)
-        Index degEl = 4 * N_;
-        Index Lobs  = (2 * degEl + 1) * M_;
-        Index nObs  = p_obs_.size()/2;
-        idx = 3*nSeg + (M_-1)*5;
+        // 6) continuity of accelerations **NEW**
+        std::vector<double> Vdot(nSeg);
+        std::vector<double> Omegadot(nSeg);
+
+        // --- DEBUG PRINTS: dump tknots, V, om, and first A‐block ---
+        // std::cout << "tknots: ";
+        // for (double t : tknots) std::cout << t << "  ";
+        // std::cout << "\n";
+
+        // std::cout << "Full V vector: ";
+        // for (int i = 0; i < nSeg; ++i) std::cout << V[i] << "  ";
+        // std::cout << "\n";
+
+        // std::cout << "Full om vector: ";
+        // for (int i = 0; i < nSeg; ++i) std::cout << om[i] << "  ";
+        // std::cout << "\n";
+
+        // // ── DEBUG: print full Dm_flat block by block ──
+        // std::cout << "Full Dm_flat:\n";
+        // for(int seg = 0; seg < M_; ++seg) {
+        //     std::cout << "-- Segment " << seg << " --\n";
+        //     double* Aseg = Dm_flat.data() + seg * dim * dim;
+        //     for(int i = 0; i < dim; ++i) {
+        //         for(int j = 0; j < dim; ++j) {
+        //             std::cout << Aseg[i*dim + j] << " ";
+        //         }
+        //         std::cout << "\n";
+        //     }
+        // }
+        // std::cout << std::endl;
+
+        // peek at the first segment’s differentiation matrix block A (dim×dim)
+        //int dim = N_+1;
+        // double* A0 = Dm_flat.data();  // first seg block
+        // std::cout << "A block (segment 0):\n";
+        // for (int i = 0; i < dim; ++i) {
+        //     for (int j = 0; j < dim; ++j) {
+        //         std::cout << std::setw(10) << A0[i*dim + j] << " ";
+        //     }
+        //     std::cout << "\n";
+        // }
+        // std::cout << std::flush;
+
+
+        for(int seg=0; seg<M_; ++seg){
+        int row0=seg*dim, col0=seg*dim;
+        double* A = Dm_flat.data() + seg*dim*dim;
+        cblas_dgemv(CblasRowMajor, CblasTrans, dim, dim,
+                    1.0, A, dim,
+                    V.data()+col0,1, 0.0, Vdot.data()+row0,1);
+        cblas_dgemv(CblasRowMajor, CblasTrans, dim, dim,
+                    1.0, A, dim,
+                    om.data()+col0,1,0.0,Omegadot.data()+row0,1);
+        }
+
+        // 4) print Vdot and Omegadot after differentiation
+        // std::cout << "Vdot: ";
+        // for(int i=0; i<nSeg; ++i) std::cout << Vdot[i] << " ";
+        // std::cout << "\n";
+        // std::cout << "Omegadot: ";
+        // for(int i=0; i<nSeg; ++i) std::cout << Omegadot[i] << " ";
+        // std::cout << "\n";
+
+        for(int seg=0; seg<M_-1; ++seg){
+            int endN=(seg+1)*dim -1, nxt=endN+1;
+            g[idx++] = Vdot[endN]     - Vdot[nxt];
+            g[idx++] = Omegadot[endN] - Omegadot[nxt];
+        }
+
+        // 7) obstacle avoidance (inequality)
+        int degEl = 4*N_;
+        int Lobs  = (2*degEl+1)*M_;
+        int nObs  = p_obs_.size()/2;
+        double sep2 = sep_*sep_;
+        idx = 3*nSeg + (M_-1)*5 + (M_-1)*2;
         auto x1_el = PiecewiseDegElevMatrix(x1, M_, N_, degEl);
         auto x2_el = PiecewiseDegElevMatrix(x2, M_, N_, degEl);
-        double sep2 = sep_*sep_;
         for(int o=0; o<nObs; ++o){
             double xo = p_obs_[o], yo = p_obs_[nObs+o];
-            std::vector<double> dx(x1_el.size()), dy(x2_el.size());
+            std::vector<double> dx(x1_el.size()), dy(x1_el.size());
             for(size_t i=0;i<dx.size();++i){
-                dx[i] = x1_el[i]-xo; dy[i] = x2_el[i]-yo;
+                dx[i]=x1_el[i]-xo; dy[i]=x2_el[i]-yo;
             }
             auto bx = PiecewiseBernsteinProduct(dx, dx, M_, degEl);
             auto by = PiecewiseBernsteinProduct(dy, dy, M_, degEl);
@@ -383,6 +460,60 @@ public:
         writeToCSV(cont_times, cont_v,   "v_continuity.csv");
         writeToCSV(cont_times, cont_om,  "om_continuity.csv");
 
+
+        tf_ = x[n-1];
+        //auto tknots = generateTknots();
+        //piecewiseBebot_ = PiecewiseBeBOT(N_, tknots);
+        //piecewiseBebot_.calculate();
+        std::vector<double> Dm_flat = piecewiseBebot_.getDifferentiationMatrixFlat();
+
+        int dim = N_+1;
+        solution_vdot_.assign(nSeg, 0.0);
+        solution_omegadot_.assign(nSeg, 0.0);
+        for(int seg=0; seg<M_; ++seg){
+            int row0=seg*dim, col0=row0;
+            double* A = Dm_flat.data() + seg*dim*dim;
+            cblas_dgemv(CblasRowMajor, CblasTrans, dim, dim,
+                        1.0, A, dim,
+                        solution_v_.data()+col0, 1, 0.0,
+                        solution_vdot_.data()+row0, 1);
+            cblas_dgemv(CblasRowMajor, CblasTrans, dim, dim,
+                        1.0, A, dim,
+                        solution_om_.data()+col0, 1, 0.0,
+                        solution_omegadot_.data()+row0, 1);
+        }
+    
+        std::vector<std::vector<double>> solution_vdot_d(1, std::vector<double>(solution_vdot_.begin(), solution_vdot_.end()));
+        piecewisebernsteinpoly_result_vdot_ = PiecewiseBernsteinPoly(solution_vdot_d, tknots, final_time_);
+        // Flatten bernsteinpoly_vdot_result_
+        std::vector<double> flattened_result_vdot;
+        for (const auto& row : piecewisebernsteinpoly_result_vdot_) {
+            flattened_result_vdot.insert(flattened_result_vdot.end(), row.begin(), row.end());
+        }
+        writeToCSV(final_time_, flattened_result_vdot, "vdot.csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_vdot_, "vdot_controlpoints.csv");
+
+        std::vector<std::vector<double>> solution_omegadot_d(1, std::vector<double>(solution_omegadot_.begin(), solution_omegadot_.end()));
+        piecewisebernsteinpoly_result_omegadot_ = PiecewiseBernsteinPoly(solution_omegadot_d, tknots, final_time_);
+        // Flatten bernsteinpoly_omegadot_result_
+        std::vector<double> flattened_result_omegadot;
+        for (const auto& row : piecewisebernsteinpoly_result_omegadot_) {
+            flattened_result_omegadot.insert(flattened_result_omegadot.end(), row.begin(), row.end());
+        }
+        writeToCSV(final_time_, flattened_result_omegadot, "omegadot.csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_omegadot_, "omegadot_controlpoints.csv");
+
+        std::vector<double> cont_vdot, cont_omegadot;
+        cont_vdot.reserve(M_-1);
+        cont_omegadot.reserve(M_-1);
+        for (int seg = 1; seg < M_; ++seg) {
+            int idx = seg*segSize - 1;
+            cont_vdot    .push_back(solution_vdot_[idx]);
+            cont_omegadot.push_back(solution_omegadot_[idx]);
+        }
+        writeToCSV(cont_times, cont_vdot,    "vdot_continuity.csv");
+        writeToCSV(cont_times, cont_omegadot,"omegadot_continuity.csv");
+
         {
         std::ofstream obsFile("obstacles.csv");
         obsFile << "x,y,radius\n";
@@ -412,7 +543,11 @@ private:
     std::vector<std::vector<double>> piecewisebernsteinpoly_result_psi_;
     std::vector<std::vector<double>> piecewisebernsteinpoly_result_v_;
     std::vector<std::vector<double>> piecewisebernsteinpoly_result_om_;
+    std::vector<std::vector<double>> piecewisebernsteinpoly_result_vdot_;
+    std::vector<std::vector<double>> piecewisebernsteinpoly_result_omegadot_;
     std::vector<double> solution_x1_, solution_x2_, solution_psi_, solution_v_, solution_om_;
+    std::vector<double> solution_vdot_;
+    std::vector<double> solution_omegadot_;
     Number final_obj_value_;
     std::vector<double> generateTknots() {
         std::vector<double> t(M_ + 1);
@@ -423,8 +558,8 @@ private:
 };
 
 int main() {
-    int N = 3;
-    int M = 3;
+    int N = 4;
+    int M = 4;
     double tf = 10.0;
     double x_init = 0.0;
     double x_final = 10.0;
