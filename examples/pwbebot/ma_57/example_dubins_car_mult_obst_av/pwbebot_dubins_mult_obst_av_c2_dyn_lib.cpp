@@ -117,7 +117,7 @@ public:
         x_l[off2+nSeg-1]=x_u[off2+nSeg-1]=y_final_;
         Index off3=2*nSeg;
         x_l[off3]=x_u[off3]=headin_;
-        x_l[off3+nSeg-1]=x_u[off3+nSeg-1]=headout_;
+        //x_l[off3+nSeg-1]=x_u[off3+nSeg-1]=headout_;
         Index off4=3*nSeg;
         for(Index i=off4;i<off4+nSeg;++i){
         x_l[i]=-v_max_; x_u[i]=v_max_;
@@ -416,8 +416,15 @@ public:
         for (const auto& row : piecewisebernsteinpoly_result_x1_) {
             flattened_result_x1.insert(flattened_result_x1.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result_x1, "data/x1.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_x1_, "data/x1_controlpoints.csv");
+        // --- x1 and its control points ---
+        auto x1_csv = generateUniqueFilename("data", "x1", ".csv");
+        writeToCSV(final_time_, flattened_result_x1, x1_csv);
+
+        auto x1_ctrl_csv = generateUniqueFilename("data", "x1_controlpoints", ".csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_x1_, x1_ctrl_csv);
+
+        //writeToCSV(final_time_, flattened_result_x1, "data/x1.csv");
+        //writeToCSV(piecewiseBebot_.getNodes(), solution_x1_, "data/x1_controlpoints.csv");
 
         // X2
         std::vector<std::vector<double>> solution_x2_d(1, std::vector<double>(solution_x2_.begin(), solution_x2_.end()));
@@ -427,8 +434,17 @@ public:
         for (const auto& row : piecewisebernsteinpoly_result_x2_) {
             flattened_result_x2.insert(flattened_result_x2.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result_x2, "data/x2.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_x2_, "data/x2_controlpoints.csv");
+
+        
+        // --- x2 and its control points ---
+        auto x2_csv = generateUniqueFilename("data", "x2", ".csv");
+        writeToCSV(final_time_, flattened_result_x2, x2_csv);
+
+        auto x2_ctrl_csv = generateUniqueFilename("data", "x2_controlpoints", ".csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_x2_, x2_ctrl_csv);
+
+        //writeToCSV(final_time_, flattened_result_x2, "data/x2.csv");
+        //writeToCSV(piecewiseBebot_.getNodes(), solution_x2_, "data/x2_controlpoints.csv");
 
         // psi
         std::vector<std::vector<double>> solution_psi_d(1, std::vector<double>(solution_psi_.begin(), solution_psi_.end()));
@@ -438,8 +454,16 @@ public:
         for (const auto& row : piecewisebernsteinpoly_result_psi_) {
             flattened_result_psi.insert(flattened_result_psi.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result_psi, "data/psi.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_psi_, "data/psi_controlpoints.csv");
+
+        // --- psi and its control points ---
+        auto psi_csv = generateUniqueFilename("data", "psi", ".csv");
+        writeToCSV(final_time_, flattened_result_psi, psi_csv);
+
+        auto psi_ctrl_csv = generateUniqueFilename("data", "psi_controlpoints", ".csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_psi_, psi_ctrl_csv);
+
+        // writeToCSV(final_time_, flattened_result_psi, "data/psi.csv");
+        // writeToCSV(piecewiseBebot_.getNodes(), solution_psi_, "data/psi_controlpoints.csv");
 
         // v
         std::vector<std::vector<double>> solution_v_d(1, std::vector<double>(solution_v_.begin(), solution_v_.end()));
@@ -449,8 +473,16 @@ public:
         for (const auto& row : piecewisebernsteinpoly_result_v_) {
             flattened_result_v.insert(flattened_result_v.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result_v, "data/v.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_v_, "data/v_controlpoints.csv");
+
+        // --- v and its control points ---
+        auto v_csv = generateUniqueFilename("data", "v", ".csv");
+        writeToCSV(final_time_, flattened_result_v, v_csv);
+
+        auto v_ctrl_csv = generateUniqueFilename("data", "v_controlpoints", ".csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_v_, v_ctrl_csv);
+
+        //writeToCSV(final_time_, flattened_result_v, "data/v.csv");
+        //writeToCSV(piecewiseBebot_.getNodes(), solution_v_, "data/v_controlpoints.csv");
 
         // om
         std::vector<std::vector<double>> solution_om_d(1, std::vector<double>(solution_om_.begin(), solution_om_.end()));
@@ -460,8 +492,16 @@ public:
         for (const auto& row : piecewisebernsteinpoly_result_om_) {
             flattened_result_om.insert(flattened_result_om.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result_om, "data/om.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_om_, "data/om_controlpoints.csv");
+        
+        // --- om and its control points ---
+        auto om_csv = generateUniqueFilename("data", "om", ".csv");
+        writeToCSV(final_time_, flattened_result_om, om_csv);
+
+        auto om_ctrl_csv = generateUniqueFilename("data", "om_controlpoints", ".csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_om_, om_ctrl_csv);
+        
+        //writeToCSV(final_time_, flattened_result_om, "data/om.csv");
+        //writeToCSV(piecewiseBebot_.getNodes(), solution_om_, "data/om_controlpoints.csv");
 
         std::vector<double> cont_times, cont_x1, cont_x2, cont_psi, cont_v, cont_om;
         //auto tknots = generateTknots();  // already have this above
@@ -478,12 +518,28 @@ public:
             cont_om.push_back(solution_om_[idx]);
         }
 
+        // --- continuity of control points ---
+        auto x1_cont_csv = generateUniqueFilename("data", "x1_continuity", ".csv");
+        writeToCSV(cont_times, cont_x1, x1_cont_csv);
+
+        auto x2_cont_csv = generateUniqueFilename("data", "x2_continuity", ".csv");
+        writeToCSV(cont_times, cont_x2, x2_cont_csv);
+
+        auto psi_cont_csv = generateUniqueFilename("data", "psi_continuity", ".csv");
+        writeToCSV(cont_times, cont_psi, psi_cont_csv);
+
+        auto v_cont_csv = generateUniqueFilename("data", "v_continuity", ".csv");
+        writeToCSV(cont_times, cont_v, v_cont_csv);
+
+        auto om_cont_csv = generateUniqueFilename("data", "om_continuity", ".csv");
+        writeToCSV(cont_times, cont_om, om_cont_csv);
+
         // now write them out
-        writeToCSV(cont_times, cont_x1,  "data/x1_continuity.csv");
-        writeToCSV(cont_times, cont_x2,  "data/x2_continuity.csv");
-        writeToCSV(cont_times, cont_psi, "data/psi_continuity.csv");
-        writeToCSV(cont_times, cont_v,   "data/v_continuity.csv");
-        writeToCSV(cont_times, cont_om,  "data/om_continuity.csv");
+        // writeToCSV(cont_times, cont_x1,  "data/x1_continuity.csv");
+        // writeToCSV(cont_times, cont_x2,  "data/x2_continuity.csv");
+        // writeToCSV(cont_times, cont_psi, "data/psi_continuity.csv");
+        // writeToCSV(cont_times, cont_v,   "data/v_continuity.csv");
+        // writeToCSV(cont_times, cont_om,  "data/om_continuity.csv");
 
 
         tf_ = x[n-1];
@@ -515,8 +571,17 @@ public:
         for (const auto& row : piecewisebernsteinpoly_result_vdot_) {
             flattened_result_vdot.insert(flattened_result_vdot.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result_vdot, "data/vdot.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_vdot_, "data/vdot_controlpoints.csv");
+
+        // --- vdot and its control points ---
+        auto vdot_csv = generateUniqueFilename("data", "vdot", ".csv");
+        writeToCSV(final_time_, flattened_result_vdot, vdot_csv);
+
+        auto vdot_ctrl_csv = generateUniqueFilename("data", "vdot_controlpoints", ".csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_vdot_, vdot_ctrl_csv);
+
+
+        //writeToCSV(final_time_, flattened_result_vdot, "data/vdot.csv");
+        //writeToCSV(piecewiseBebot_.getNodes(), solution_vdot_, "data/vdot_controlpoints.csv");
 
         std::vector<std::vector<double>> solution_omegadot_d(1, std::vector<double>(solution_omegadot_.begin(), solution_omegadot_.end()));
         piecewisebernsteinpoly_result_omegadot_ = PiecewiseBernsteinPoly(solution_omegadot_d, tknots, final_time_);
@@ -525,8 +590,17 @@ public:
         for (const auto& row : piecewisebernsteinpoly_result_omegadot_) {
             flattened_result_omegadot.insert(flattened_result_omegadot.end(), row.begin(), row.end());
         }
-        writeToCSV(final_time_, flattened_result_omegadot, "data/omegadot.csv");
-        writeToCSV(piecewiseBebot_.getNodes(), solution_omegadot_, "data/omegadot_controlpoints.csv");
+
+        // --- omegadot and its control points ---
+        auto omegadot_csv = generateUniqueFilename("data", "omegadot", ".csv");
+        writeToCSV(final_time_, flattened_result_omegadot, omegadot_csv);
+
+        auto omegadot_ctrl_csv = generateUniqueFilename("data", "omegadot_controlpoints", ".csv");
+        writeToCSV(piecewiseBebot_.getNodes(), solution_omegadot_, omegadot_ctrl_csv);
+
+
+        //writeToCSV(final_time_, flattened_result_omegadot, "data/omegadot.csv");
+        //writeToCSV(piecewiseBebot_.getNodes(), solution_omegadot_, "data/omegadot_controlpoints.csv");
 
         std::vector<double> cont_vdot, cont_omegadot;
         cont_vdot.reserve(M_-1);
@@ -536,20 +610,40 @@ public:
             cont_vdot    .push_back(solution_vdot_[idx]);
             cont_omegadot.push_back(solution_omegadot_[idx]);
         }
-        writeToCSV(cont_times, cont_vdot,    "data/vdot_continuity.csv");
-        writeToCSV(cont_times, cont_omegadot,"data/omegadot_continuity.csv");
+        
+        // --- continuity of derivatives ---
+        auto vdot_cont_csv = generateUniqueFilename("data", "vdot_continuity", ".csv");
+        writeToCSV(cont_times, cont_vdot, vdot_cont_csv);
+
+        auto omegadot_cont_csv = generateUniqueFilename("data", "omegadot_continuity", ".csv");
+        writeToCSV(cont_times, cont_omegadot, omegadot_cont_csv);
+        
+        //writeToCSV(cont_times, cont_vdot,    "data/vdot_continuity.csv");
+        //writeToCSV(cont_times, cont_omegadot,"data/omegadot_continuity.csv");
 
         {
-        std::ofstream obsFile("data/obstacles.csv");
+
+        auto obs_csv = generateUniqueFilename("data", "obstacles", ".csv");
+        std::ofstream obsFile(obs_csv);
         obsFile << "x,y,radius\n";
         int nObs = static_cast<int>(p_obs_.size())/2;
         for(int o = 0; o < nObs; ++o){
-            double xo = p_obs_[o];
-            double yo = p_obs_[nObs + o];
-            obsFile << std::fixed << std::setprecision(6)
-                    << xo << "," << yo << "," << sep_ << "\n";
+        double xo = p_obs_[o];
+        double yo = p_obs_[nObs + o];
+        obsFile << std::fixed << std::setprecision(6)
+                << xo << "," << yo << "," << sep_ << "\n";
         }
         obsFile.close();
+        // std::ofstream obsFile("data/obstacles.csv");
+        // obsFile << "x,y,radius\n";
+        // int nObs = static_cast<int>(p_obs_.size())/2;
+        // for(int o = 0; o < nObs; ++o){
+        //     double xo = p_obs_[o];
+        //     double yo = p_obs_[nObs + o];
+        //     obsFile << std::fixed << std::setprecision(6)
+        //             << xo << "," << yo << "," << sep_ << "\n";
+        // }
+        // obsFile.close();
     }
 
 
@@ -654,9 +748,9 @@ extern "C" {
    * Retrieve the raw decision vector:
    * [ x1_control_points..., x2_control_points..., psi..., V..., omega..., final_time ]
    *
-   * @param problem  The problem pointer returned by create_point_set_problem()
-   * @param out      Preallocated array to hold the result
-   * @param len      Length of out; must be >= (5*(N+1)*M + 1)
+   * //@param problem  The problem pointer returned by create_point_set_problem()
+   * //@param out      Preallocated array to hold the result
+   * //@param len      Length of out; must be >= (5*(N+1)*M + 1)
    */
     void get_solution(PointSetProblem* problem, double* out, int len) {
         const auto& sol = problem->get_solution();   // <— call your get_solution()
@@ -678,6 +772,7 @@ extern "C" {
    */
   void destroy_point_set_problem(PointSetProblem* problem) {
       delete problem;
+      //problem = nullptr;
   }
 
 }
