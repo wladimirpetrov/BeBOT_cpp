@@ -565,13 +565,14 @@ int main() {
     double x_final = 10.0;
     double y_init = 0.0;
     double y_final = 10.0;
-    double heading = 0.5236;
+    double heading = 1.57;
     double headout = 0.5236;
-    double n_obs = 2.0;
-    double sep =  0.5;
+    std::vector<double> p_obs{9,9};
+    double n_obs = p_obs.size()/2;
+    double sep =  0.8;
     double v_max =  5.0;
     double omega_max = 1.0;
-    std::vector<double> p_obs{1.5,4,6,8, 2.0,3.5,6.0,8.5};
+    
 
     SmartPtr<TNLP> prob = new PointSetProblem(
         N, M,
@@ -591,7 +592,8 @@ int main() {
     app->Options()->SetIntegerValue("max_iter",5000);
     app->Options()->SetNumericValue("tol",1e-6);
     app->RethrowNonIpoptException(true);
-
+    app->Options()->SetIntegerValue("print_level", 0);
+    
     if (app->Initialize() != Solve_Succeeded) {
         std::cerr << "IPOPT initialization failed!" << std::endl;
         return -1;

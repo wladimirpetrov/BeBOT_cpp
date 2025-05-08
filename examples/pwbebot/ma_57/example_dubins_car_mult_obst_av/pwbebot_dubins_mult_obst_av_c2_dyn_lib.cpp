@@ -725,16 +725,17 @@ extern "C" {
    * Returns 0 on success (Solve_Succeeded), non‐zero on failure.
    */
   int solve_point_set_problem(PointSetProblem* problem) {
-      SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
-      app->Options()->SetStringValue("linear_solver",             "ma57");
-      app->Options()->SetStringValue("mu_strategy",               "adaptive");
-      app->Options()->SetStringValue("gradient_approximation",    "finite-difference-values");
-      app->Options()->SetStringValue("jacobian_approximation",    "finite-difference-values");
-      app->Options()->SetStringValue("hessian_approximation",     "limited-memory");
-      app->Options()->SetIntegerValue("max_iter",                 5000);
-      app->Options()->SetNumericValue("tol",                       1e-6);
-      app->RethrowNonIpoptException(true);
-
+    SmartPtr<IpoptApplication> app = IpoptApplicationFactory();
+    app->Options()->SetStringValue("linear_solver",             "ma57");
+    app->Options()->SetStringValue("mu_strategy",               "adaptive");
+    app->Options()->SetStringValue("gradient_approximation",    "finite-difference-values");
+    app->Options()->SetStringValue("jacobian_approximation",    "finite-difference-values");
+    app->Options()->SetStringValue("hessian_approximation",     "limited-memory");
+    app->Options()->SetIntegerValue("max_iter",                 5000);
+    app->Options()->SetNumericValue("tol",                       1e-6);
+    app->RethrowNonIpoptException(true);
+    app->Options()->SetIntegerValue("print_level", 0);
+    
       if (app->Initialize() != Solve_Succeeded) {
           return -1;
       }
