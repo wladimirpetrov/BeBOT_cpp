@@ -14,26 +14,64 @@ using namespace Ipopt;
 
 class PointSetProblem : public Ipopt::TNLP {
 public:
-    PointSetProblem(int N, double tf, double delta_v_max, double delta_v_min, double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double zmax, double zmin, double wmax, double wmin, double thetamax, double thetamin, double qmax, double qmin, double z0, double w0, double theta0, double q0, double delta_v0, double delta_s0, double delta_m0, double zf, double thetaf, 
-                    double a11, double a12, double a13, double a14, double a21, double a22, double a23, double a24, double a31, double a32, double a33, double a34, double a41, double a42, double a43, double a44, 
-                    double b11, double b12, double b13, double b21, double b22, double b23, double b31, double b32, double b33, double b41, double b42, double b43, double t0, double tend, double psi0)
-        : N_(N), tf_(tf), delta_v_max_(delta_v_max), delta_v_min_(delta_v_min), delta_s_max_(delta_s_max), delta_s_min_(delta_s_min), delta_m_max_(delta_m_max), delta_m_min_(delta_m_min), zmax_(zmax), zmin_(zmin), wmax_(wmax), wmin_(wmin), thetamax_(thetamax), thetamin_(thetamin), qmax_(qmax), qmin_(qmin), z0_(z0), w0_(w0), theta0_(theta0), q0_(q0), delta_v0_(delta_v0), delta_s0_(delta_s0), delta_m0_(delta_m0), zf_(zf), thetaf_(thetaf), bebot_(N, tf_), t0_(t0), tend_(tend), psi0_(psi0) {
+    PointSetProblem(int N, double tf, double delta_v_max, double delta_v_min, 
+        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min, 
+        double zmax, double zmin, double wmax, double wmin, double thetamax, double thetamin, double qmax, double qmin,
+        double ymax, double ymin,double psimax, double psimin,double vmax, double vmin, double rmax, double rmin, 
+        double z0, double w0, double theta0, double q0,
+        double y0, double psi0, double v0, double r0, 
+        double delta_v0, double delta_s0, double delta_m0, double delta_h0,
+        double zf, double thetaf, double yf, double psif, 
+        double a11, double a12, double a13, double a14, double a15, double a16, double a17, double a18, 
+        double a21, double a22, double a23, double a24, double a25, double a26, double a27, double a28,
+        double a31, double a32, double a33, double a34, double a35, double a36, double a37, double a38,
+        double a41, double a42, double a43, double a44, double a45, double a46, double a47, double a48,
+        double a51, double a52, double a53, double a54, double a55, double a56, double a57, double a58,
+        double a61, double a62, double a63, double a64, double a65, double a66, double a67, double a68,
+        double a71, double a72, double a73, double a74, double a75, double a76, double a77, double a78,
+        double a81, double a82, double a83, double a84, double a85, double a86, double a87, double a88, 
+        double b11, double b12, double b13, double b14,
+        double b21, double b22, double b23, double b24,
+        double b31, double b32, double b33, double b34,
+        double b41, double b42, double b43, double b44,
+        double b51, double b52, double b53, double b54,
+        double b61, double b62, double b63, double b64,
+        double b71, double b72, double b73, double b74,
+        double b81, double b82, double b83, double b84,
+        double t0, double tend)
+        : N_(N), tf_(tf), delta_v_max_(delta_v_max), delta_v_min_(delta_v_min), delta_h_max_(delta_h_max), delta_h_min_(delta_h_min), 
+        delta_s_max_(delta_s_max), delta_s_min_(delta_s_min), delta_m_max_(delta_m_max), delta_m_min_(delta_m_min), 
+        zmax_(zmax), zmin_(zmin), wmax_(wmax), wmin_(wmin), thetamax_(thetamax), thetamin_(thetamin), qmax_(qmax), qmin_(qmin),
+        ymax_(ymax), ymin_(ymin), psimax_(psimax), psimin_(psimin), vmax_(vmax), vmin_(vmin), rmax_(rmax), rmin_(rmin), 
+        z0_(z0), w0_(w0), theta0_(theta0), q0_(q0),
+        y0_(y0), psi0_(psi0), v0_(v0), r0_(r0), 
+        delta_v0_(delta_v0), delta_s0_(delta_s0), delta_m0_(delta_m0), delta_h0_(delta_h0), 
+        zf_(zf), thetaf_(thetaf), yf_(yf), psif_(psif), bebot_(N, tf_), t0_(t0), tend_(tend) {
         std::cout << "Creating PointSetProblem instance" << std::endl;
 
         // Construct the A matrix
         A_ = {{
-            {a11, a12, a13, a14},
-            {a21, a22, a23, a24},
-            {a31, a32, a33, a34},
-            {a41, a42, a43, a44}
+            {a11, a12, a13, a14, a15, a16, a17, a18},
+            {a21, a22, a23, a24, a25, a26, a27, a28},
+            {a31, a32, a33, a34, a35, a36, a37, a38},
+            {a41, a42, a43, a44, a45, a46, a47, a48},
+            {a51, a52, a53, a54, a55, a56, a57, a58},
+            {a61, a62, a63, a64, a65, a66, a67, a68},
+            {a71, a72, a73, a74, a75, a76, a77, a78},
+            {a81, a82, a83, a84, a85, a86, a87, a88}
+
         }};
 
         // Construct the B matrix
         B_ = {{
-            {b11, b12, b13},
-            {b21, b22, b23},
-            {b31, b32, b33},
-            {b41, b42, b43}
+            {b11, b12, b13, b14},
+            {b21, b22, b23, b24},
+            {b31, b32, b33, b34},
+            {b41, b42, b43, b44},
+            {b51, b52, b53, b54},
+            {b61, b62, b63, b64},
+            {b71, b72, b73, b74},
+            {b81, b82, b83, b84}
         }};
         
         bebot_.calculate();
@@ -53,7 +91,7 @@ public:
     }
 
     virtual bool get_nlp_info(Index& n, Index& m, Index& nnz_jac_g, Index& nnz_h_lag, IndexStyleEnum& index_style) {
-        n = 7 * (N_ + 1); 
+        n = 12 * (N_ + 1); 
         m = 4 * (N_ + 1);
         nnz_jac_g = n * m;  
         nnz_h_lag = 0; 
@@ -73,18 +111,24 @@ public:
         x_lower[0] = x_upper[0] = z0_;
         //x_lower[N_] = x_upper[N_] = zf_;
 
-        for (int i = N_ + 2; i < 2 * (N_ + 1); ++i) {
-            x_lower[i] = wmin_;
-            x_upper[i] = wmax_;
-        }
-        x_lower[N_ + 1] = x_upper[N_ + 1] = w0_;
-
-        for (int i = 2 * (N_ + 1) + 1; i < 3 * (N_ + 1); ++i) {
+        for (int i = N_ + 1 + 1; i < 2 * (N_ + 1); ++i) {
             x_lower[i] = thetamin_;
             x_upper[i] = thetamax_;
         }
-        x_lower[2 * (N_ + 1)] = x_upper[2 * (N_ + 1)] = theta0_;
-        //x_lower[3 * (N_ + 1) - 1] = x_upper[3 * (N_ + 1) - 1] = thetaf_;
+        x_lower[(N_ + 1)] = x_upper[(N_ + 1)] = theta0_;
+
+        for (int i = 2 * (N_ + 1) + 1; i < 3 * (N_ + 1); ++i) {
+            x_lower[i] = wmin_;
+            x_upper[i] = wmax_;
+        }
+        x_lower[2 * (N_ + 1)] = x_upper[2 * (N_ + 1)] = w0_;
+
+        // for (int i = 2 * (N_ + 1) + 1; i < 3 * (N_ + 1); ++i) {
+        //     x_lower[i] = thetamin_;
+        //     x_upper[i] = thetamax_;
+        // }
+        // x_lower[2 * (N_ + 1)] = x_upper[2 * (N_ + 1)] = theta0_;
+        
 
         for (int i = 3 * (N_ + 1) + 1; i < 4 * (N_ + 1); ++i) {
             x_lower[i] = qmin_;
@@ -92,6 +136,8 @@ public:
         }
         x_lower[3 * (N_ + 1)] = x_upper[3 * (N_ + 1)] = q0_;//
 
+
+        // control input
         for (int i = 4 * (N_ + 1); i < 5 * (N_ + 1); ++i) { // 4 * (N_ + 1) + 1
             x_lower[i] = delta_v_min_;
             x_upper[i] = delta_v_max_;
@@ -364,6 +410,8 @@ private:
     double delta_s_min_;
     double delta_m_max_;
     double delta_m_min_;
+    double delta_h_max_;
+    double delta_h_min_;
     double zmax_;
     double zmin_;
     double wmax_;  
@@ -372,23 +420,35 @@ private:
     double thetamin_;
     double qmax_;
     double qmin_;
+    double ymax_;
+    double ymin_;
+    double psimax_;  
+    double psimin_;
+    double vmax_;
+    double vmin_;
+    double rmax_;
+    double rmin_;
     double z0_;
     double w0_;
     double theta0_;
     double q0_;
+    double y0_;
+    double psi0_;
+    double v0_;
+    double r0_;
     double delta_v0_;
     double delta_s0_;
     double delta_m0_;
+    double delta_h0_;
     double zf_;
     double thetaf_;
-
-
+    double yf_;
+    double psif_;
     double t0_;
     double tend_;
-    double psi0_;
 
-    std::array<std::array<double, 4>, 4> A_;
-    std::array<std::array<double, 3>, 4> B_;
+    std::array<std::array<double, 8>, 8> A_;
+    std::array<std::array<double, 4>, 8> B_;
     Bebot bebot_;
     std::vector<Number> solution_u_;
     std::vector<Number> solution_x2_;
@@ -405,12 +465,54 @@ public:
 };
 
 extern "C" {
-    PointSetProblem* create_point_set_problem(int N, double tf, double delta_v_max, double delta_v_min, double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double zmax, double zmin, double wmax, double wmin, double thetamax, double thetamin, double qmax, double qmin, double z0, double w0, double theta0, double q0, double delta_v0, double delta_s0, double delta_m0, double zf, double thetaf, 
-                                              double a11, double a12, double a13, double a14, double a21, double a22, double a23, double a24, double a31, double a32, double a33, double a34, double a41, double a42, double a43, double a44, 
-                                              double b11, double b12, double b13, double b21, double b22, double b23, double b31, double b32, double b33, double b41, double b42, double b43, double t0, double tend, double psi0) {
-        return new PointSetProblem(N, tf, delta_v_max, delta_v_min, delta_s_max, delta_s_min, delta_m_max, delta_m_min, zmax, zmin, wmax, wmin, thetamax, thetamin, qmax, qmin, z0, w0, theta0, q0, delta_v0, delta_s0, delta_m0, zf, thetaf, 
-                                   a11, a12, a13, a14, a21, a22, a23, a24, a31, a32, a33, a34, a41, a42, a43, a44, 
-                                   b11, b12, b13, b21, b22, b23, b31, b32, b33, b41, b42, b43, t0, tend, psi0);
+    PointSetProblem* create_point_set_problem(int N, double tf, double delta_v_max, double delta_v_min, 
+        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min,
+        double zmax, double zmin, double wmax, double wmin, double thetamax, double thetamin, double qmax, double qmin, 
+        double ymax, double ymin, double psimax, double psimin, double vmax, double vmin, double rmax, double rmin,
+        double z0, double w0, double theta0, double q0,
+        double y0, double psi0, double v0, double r0, 
+        double delta_v0, double delta_s0, double delta_m0, double delta_h0,
+        double zf, double thetaf, double yf, double psif, 
+        double a11, double a12, double a13, double a14, double a15, double a16, double a17, double a18, 
+        double a21, double a22, double a23, double a24, double a25, double a26, double a27, double a28, 
+        double a31, double a32, double a33, double a34, double a35, double a36, double a37, double a38, 
+        double a41, double a42, double a43, double a44, double a45, double a46, double a47, double a48,
+        double a51, double a52, double a53, double a54, double a55, double a56, double a57, double a58,
+        double a61, double a62, double a63, double a64, double a65, double a66, double a67, double a68,
+        double a71, double a72, double a73, double a74, double a75, double a76, double a77, double a78,
+        double a81, double a82, double a83, double a84, double a85, double a86, double a87, double a88, 
+        double b11, double b12, double b13, double b14, 
+        double b21, double b22, double b23, double b24, 
+        double b31, double b32, double b33, double b34, 
+        double b41, double b42, double b43, double b44, 
+        double b51, double b52, double b53, double b54,
+        double b61, double b62, double b63, double b64,
+        double b71, double b72, double b73, double b74,
+        double b81, double b82, double b83, double b84,
+        double t0, double tend) {
+        return new PointSetProblem(N, tf, delta_v_max, delta_v_min, delta_s_max, delta_s_min, 
+            delta_m_max, delta_m_min, delta_h_max, delta_h_min, 
+            zmax, zmin, wmax, wmin, thetamax, thetamin, qmax, qmin, 
+            ymax, ymin, psimax, psimin, vmax, vmin, rmax, rmin, 
+            z0, w0, theta0, q0, y0, psi0, v0, r0,
+            delta_v0, delta_s0, delta_m0, delta_h0, zf, thetaf, yf, psif,
+            a11, a12, a13, a14, a15, a16, a17, a18, 
+            a21, a22, a23, a24, a25, a26, a27, a28,
+            a31, a32, a33, a34, a35, a36, a37, a38,
+            a41, a42, a43, a44, a45, a46, a47, a48,
+            a51, a52, a53, a54, a55, a56, a57, a58,
+            a61, a62, a63, a64, a65, a66, a67, a68,
+            a71, a72, a73, a74, a75, a76, a77, a78,
+            a81, a82, a83, a84, a85, a86, a87, a88, 
+            b11, b12, b13, b14,
+            b21, b22, b23, b24,
+            b31, b32, b33, b34,
+            b41, b42, b43, b44,
+            b51, b52, b53, b54,
+            b61, b62, b63, b64,
+            b71, b72, b73, b74,
+            b81, b82, b83, b84,
+            t0, tend);
     }
 
     void solve_point_set_problem(PointSetProblem* problem) {
