@@ -164,7 +164,7 @@ public:
             x_lower[i] = rmin_;
             x_upper[i] = rmax_;
         }
-        x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = v0_;
+        x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = r0_;
 
         // control input
         for (int i = 8 * (N_ + 1); i < 9 * (N_ + 1); ++i) { // 8 * (N_ + 1) + 1
@@ -231,7 +231,7 @@ public:
         std::vector<double> dv_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
         std::vector<double> dm_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
         std::vector<double> ds_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
-        std::vector<double> ds_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
+        std::vector<double> dh_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
 
         std::vector<double> z_diff(N_ + 1);
         std::vector<double> theta_diff(N_ + 1);
@@ -266,7 +266,9 @@ public:
         double dh_sum = cblas_dasum(N_ + 1, dh_sqr.data(), 1);
 
 
-        obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w6 * y_diff_sum + w7 * psi_diff_sum + w3 * dv_sum + w4 * dm_sum + w5 * ds_sum + w8 * dh_sum;
+        //obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w6 * y_diff_sum + w7 * psi_diff_sum + w3 * dv_sum + w4 * dm_sum + w5 * ds_sum + w8 * dh_sum;
+        obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w6 * y_diff_sum + w7 * psi_diff_sum + w3;
+
         return true;
     }
 
@@ -289,6 +291,7 @@ public:
         std::vector<double> delta_s_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
         std::vector<double> delta_h_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
 
+        
         std::vector<double> dyn1(N_ + 1);
         std::vector<double> dyn2(N_ + 1);
         std::vector<double> dyn3(N_ + 1);
@@ -302,10 +305,11 @@ public:
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, theta_vector.data(), 1, 0.0, dyn2.data(), 1);
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, w_vector.data(), 1, 0.0, dyn3.data(), 1);
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, q_vector.data(), 1, 0.0, dyn4.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, y_vector.data(), 1, 0.0, dyn1.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, psi_vector.data(), 1, 0.0, dyn2.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, v_vector.data(), 1, 0.0, dyn3.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, r_vector.data(), 1, 0.0, dyn4.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, y_vector.data(), 1, 0.0, dyn5.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, psi_vector.data(), 1, 0.0, dyn6.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, v_vector.data(), 1, 0.0, dyn7.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, r_vector.data(), 1, 0.0, dyn8.data(), 1);
+        
 
         std::vector<double> X1_matrix_flat(8 * (N_ + 1));
         std::vector<double> U_matrix_flat(4 * (N_ + 1));
@@ -381,6 +385,8 @@ public:
             g[6 * (N_ + 1) + i] = g7[i];
             g[7 * (N_ + 1) + i] = g8[i];
         }
+        
+
         return true;
     }
 
@@ -419,7 +425,7 @@ public:
         solution_x_.resize(12 * (N_ + 1));
         
         // Copy the first 4 * (N + 1) elements from the x array
-        for (Index i = 0; i < 8 * (N_ + 1); ++i) {
+        for (Index i = 0; i < 12 * (N_ + 1); ++i) {
             solution_x_[i] = x[i];
         }
         
@@ -457,6 +463,32 @@ public:
         std::vector<double> delta_m_vector(solution_x_.begin() + 9 * (N_ + 1), solution_x_.begin() + 10 * (N_ + 1));
         std::vector<double> delta_s_vector(solution_x_.begin() + 10 * (N_ + 1), solution_x_.begin() + 11 * (N_ + 1));
         std::vector<double> delta_h_vector(solution_x_.begin() + 11 * (N_ + 1), solution_x_.end());
+
+        // Helper to print any std::vector<double>
+        auto print_vec = [&](const std::string& name, const std::vector<double>& v){
+            std::cout << name << " = [";
+            for (size_t i = 0; i < v.size(); ++i) {
+                std::cout << v[i];
+                if (i + 1 < v.size()) std::cout << ", ";
+            }
+            std::cout << "]\n";
+        };
+
+        // After unpacking:
+        print_vec("z_vector",        z_vector);
+        print_vec("theta_vector",    theta_vector);
+        print_vec("w_vector",        w_vector);
+        print_vec("q_vector",        q_vector);
+        print_vec("y_vector",        y_vector);
+        print_vec("psi_vector",      psi_vector);
+        print_vec("v_vector",        v_vector);
+        print_vec("r_vector",        r_vector);
+
+        print_vec("delta_v_vector",  delta_v_vector);
+        print_vec("delta_m_vector",  delta_m_vector);
+        print_vec("delta_s_vector",  delta_s_vector);
+        print_vec("delta_h_vector",  delta_h_vector);
+
 
         std::vector<std::vector<double>> z_2d(1, z_vector);
         std::vector<std::vector<double>> theta_2d(1, w_vector);
@@ -685,4 +717,4 @@ extern "C" {
     }
 }
 
-// g++ -shared -fPIC -o libbebot_mpc_auv_v1.so ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_v1/libbebot_mpc_auv_v1.cpp ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_v1/state_space_matrices.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bebot.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinpoly.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteindifferentialmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinmatrix_a2b.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/degelevmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/nchoosek_mod.cpp -I~/dev/optimization/BeBOT_cpp_v2/include -I./Ipopt/src/ -L./Ipopt/src/.libs -lipopt -L/opt/intel/oneapi/mkl/latest/lib/intel64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -ldl -lm -lpthread -lstdc++
+// g++ -shared -fPIC -o libbebot_mpc_auv_v1_threed.so ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_threed/libbebot_mpc_auv_v1.cpp ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_threed/state_space_matrices.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bebot.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinpoly.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteindifferentialmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinmatrix_a2b.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/degelevmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/nchoosek_mod.cpp -I~/dev/optimization/BeBOT_cpp_v2/include -I./Ipopt/src/ -L./Ipopt/src/.libs -lipopt -L/opt/intel/oneapi/mkl/latest/lib/intel64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -ldl -lm -lpthread -lstdc++
