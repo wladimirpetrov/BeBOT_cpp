@@ -103,7 +103,7 @@ public:
         // Precompute bounds to avoid redundant calculations
         std::vector<double> x_lower(n, -std::numeric_limits<double>::infinity());
         std::vector<double> x_upper(n, std::numeric_limits<double>::infinity());
-
+        // z
         for (int i = 1; i < N_ + 1; ++i) {
             x_lower[i] = zmin_;
             x_upper[i] = zmax_;
@@ -111,12 +111,14 @@ public:
         x_lower[0] = x_upper[0] = z0_;
         //x_lower[N_] = x_upper[N_] = zf_;
 
+        // theta
         for (int i = N_ + 1 + 1; i < 2 * (N_ + 1); ++i) {
             x_lower[i] = thetamin_;
             x_upper[i] = thetamax_;
         }
         x_lower[(N_ + 1)] = x_upper[(N_ + 1)] = theta0_;
 
+        // w
         for (int i = 2 * (N_ + 1) + 1; i < 3 * (N_ + 1); ++i) {
             x_lower[i] = wmin_;
             x_upper[i] = wmax_;
@@ -129,13 +131,40 @@ public:
         // }
         // x_lower[2 * (N_ + 1)] = x_upper[2 * (N_ + 1)] = theta0_;
         
-
+        // q
         for (int i = 3 * (N_ + 1) + 1; i < 4 * (N_ + 1); ++i) {
             x_lower[i] = qmin_;
             x_upper[i] = qmax_;
         }
         x_lower[3 * (N_ + 1)] = x_upper[3 * (N_ + 1)] = q0_;//
 
+        // y
+        for (int i = 4 * (N_ + 1) + 1; i < 5 * (N_ + 1); ++i) {
+            x_lower[i] = ymin_;
+            x_upper[i] = ymax_;
+        }
+        x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = y0_;
+
+        // psi
+        for (int i = 5 * (N_ + 1) + 1; i < 6 * (N_ + 1); ++i) {
+            x_lower[i] = psimin_;
+            x_upper[i] = psimax_;
+        }
+        x_lower[5 * (N_ + 1)] = x_upper[5 * (N_ + 1)] = psi0_;
+
+        // v
+        for (int i = 6 * (N_ + 1) + 1; i < 7 * (N_ + 1); ++i) {
+            x_lower[i] = vmin_;
+            x_upper[i] = vmax_;
+        }
+        x_lower[6 * (N_ + 1)] = x_upper[6 * (N_ + 1)] = v0_;
+
+        // r
+        for (int i = 7 * (N_ + 1) + 1; i < 8 * (N_ + 1); ++i) {
+            x_lower[i] = rmin_;
+            x_upper[i] = rmax_;
+        }
+        x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = v0_;
 
         // control input
         for (int i = 4 * (N_ + 1); i < 5 * (N_ + 1); ++i) { // 4 * (N_ + 1) + 1
