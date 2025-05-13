@@ -92,7 +92,7 @@ public:
 
     virtual bool get_nlp_info(Index& n, Index& m, Index& nnz_jac_g, Index& nnz_h_lag, IndexStyleEnum& index_style) {
         n = 12 * (N_ + 1); 
-        m = 4 * (N_ + 1);
+        m = 8 * (N_ + 1);
         nnz_jac_g = n * m;  
         nnz_h_lag = 0; 
         index_style = TNLP::C_STYLE;
@@ -167,23 +167,29 @@ public:
         x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = v0_;
 
         // control input
-        for (int i = 4 * (N_ + 1); i < 5 * (N_ + 1); ++i) { // 4 * (N_ + 1) + 1
+        for (int i = 8 * (N_ + 1); i < 9 * (N_ + 1); ++i) { // 8 * (N_ + 1) + 1
             x_lower[i] = delta_v_min_;
             x_upper[i] = delta_v_max_;
         }
-        //x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = delta_v0_;
+        //x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = delta_v0_;
 
-        for (int i = 5 * (N_ + 1); i < 6 * (N_ + 1); ++i) { // 5 * (N_ + 1) + 1
+        for (int i = 9 * (N_ + 1); i < 10 * (N_ + 1); ++i) { // 9 * (N_ + 1) + 1
             x_lower[i] = delta_m_min_;
             x_upper[i] = delta_m_max_;
         }
-        //x_lower[5 * (N_ + 1)] = x_upper[5 * (N_ + 1)] = delta_s0_;
+        //x_lower[9 * (N_ + 1)] = x_upper[9 * (N_ + 1)] = delta_m0_;
 
-        for (int i = 6 * (N_ + 1); i < 7 * (N_ + 1); ++i) { // 6 * (N_ + 1) + 1
+        for (int i = 10 * (N_ + 1); i < 11 * (N_ + 1); ++i) { // 10 * (N_ + 1) + 1
             x_lower[i] = delta_s_min_;
             x_upper[i] = delta_s_max_;
         }
-        //x_lower[6 * (N_ + 1)] = x_upper[6 * (N_ + 1)] = delta_m0_;
+        //x_lower[10 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_s0_;
+
+        for (int i = 11 * (N_ + 1); i < 12 * (N_ + 1); ++i) { // 11 * (N_ + 1) + 1
+            x_lower[i] = delta_h_min_;
+            x_upper[i] = delta_h_max_;
+        }
+        //x_lower[11 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_h0_;
 
         std::copy(x_lower.begin(), x_lower.end(), x_l);
         std::copy(x_upper.begin(), x_upper.end(), x_u);
@@ -202,29 +208,45 @@ public:
     virtual bool eval_f(Index n, const Number* x, bool new_x, Number& obj_value) {
         const double w1 = 20.0;
         const double w2 = 20.0;
+        const double w6 = 20.0;
+        const double w7 = 20.0;
+
         const double w3 = 1.0;
         const double w4 = 50.00;
         const double w5 = 1.0;
+        const double w8 = 1.0;
 
         obj_value = 0.0;
 
         std::vector<double> zf_vector(N_ + 1, zf_);
         std::vector<double> thetaf_vector(N_ + 1, thetaf_);
+        std::vector<double> yf_vector(N_ + 1, yf_);
+        std::vector<double> psif_vector(N_ + 1, psif_);
 
         std::vector<double> z_vector(x, x + (N_ + 1));
-        std::vector<double> theta_vector(x + 2 * (N_ + 1), x + 3 * (N_ + 1));
-        std::vector<double> dv_vector(x + 4 * (N_ + 1), x + 4 * (N_ + 1));
-        std::vector<double> dm_vector(x + 5 * (N_ + 1), x + 5 * (N_ + 1));
-        std::vector<double> ds_vector(x + 6 * (N_ + 1), x + 6 * (N_ + 1));
+        std::vector<double> theta_vector(x + 1 * (N_ + 1), x + 2 * (N_ + 1));
+        std::vector<double> y_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
+        std::vector<double> psi_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
+
+        std::vector<double> dv_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
+        std::vector<double> dm_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
+        std::vector<double> ds_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
+        std::vector<double> ds_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
 
         std::vector<double> z_diff(N_ + 1);
         std::vector<double> theta_diff(N_ + 1);
+        std::vector<double> y_diff(N_ + 1);
+        std::vector<double> psi_diff(N_ + 1);
+
         std::vector<double> dv_sqr(N_ + 1);
         std::vector<double> dm_sqr(N_ + 1);
         std::vector<double> ds_sqr(N_ + 1);
+        std::vector<double> dh_sqr(N_ + 1);
 
         vdSub(N_ + 1, z_vector.data(), zf_vector.data(), z_diff.data());
         vdSub(N_ + 1, theta_vector.data(), thetaf_vector.data(), theta_diff.data());
+        vdSub(N_ + 1, y_vector.data(), yf_vector.data(), y_diff.data());
+        vdSub(N_ + 1, psi_vector.data(), psif_vector.data(), psi_diff.data());
 
         vdSqr(N_ + 1, z_diff.data(), z_diff.data());
         vdSqr(N_ + 1, theta_diff.data(), theta_diff.data());
@@ -234,12 +256,17 @@ public:
 
         double z_diff_sum = cblas_dasum(N_ + 1, z_diff.data(), 1);
         double theta_diff_sum = cblas_dasum(N_ + 1, theta_diff.data(), 1);
+        double y_diff_sum = cblas_dasum(N_ + 1, y_diff.data(), 1);
+        double psi_diff_sum = cblas_dasum(N_ + 1, psi_diff.data(), 1);
+
+
         double dv_sum = cblas_dasum(N_ + 1, dv_sqr.data(), 1);
         double dm_sum = cblas_dasum(N_ + 1, dm_sqr.data(), 1);
         double ds_sum = cblas_dasum(N_ + 1, ds_sqr.data(), 1);
+        double dh_sum = cblas_dasum(N_ + 1, dh_sqr.data(), 1);
 
 
-        obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w3 * dv_sum + w4 * dm_sum + w5 * ds_sum;
+        obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w6 * y_diff_sum + w7 * psi_diff_sum + w3 * dv_sum + w4 * dm_sum + w5 * ds_sum + w8 * dh_sum;
         return true;
     }
 
@@ -249,71 +276,110 @@ public:
         const auto& Dm = Bebot.getDifferentiationMatrix();
 
         std::vector<double> z_vector(x, x + (N_ + 1));
-        std::vector<double> w_vector(x + (N_ + 1), x + 2 * (N_ + 1));
-        std::vector<double> theta_vector(x + 2 * (N_ + 1), x + 3 * (N_ + 1));
+        std::vector<double> theta_vector(x + 1 * (N_ + 1), x + 2 * (N_ + 1));
+        std::vector<double> w_vector(x + 2 * (N_ + 1), x + 3 * (N_ + 1));
         std::vector<double> q_vector(x + 3 * (N_ + 1), x + 4 * (N_ + 1));
-        std::vector<double> delta_v_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
-        std::vector<double> delta_m_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
-        std::vector<double> delta_s_vector(x + 6 * (N_ + 1), x + 7 * (N_ + 1));
+        std::vector<double> y_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
+        std::vector<double> psi_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
+        std::vector<double> v_vector(x + 6 * (N_ + 1), x + 7 * (N_ + 1));
+        std::vector<double> r_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
+
+        std::vector<double> delta_v_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
+        std::vector<double> delta_m_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
+        std::vector<double> delta_s_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
+        std::vector<double> delta_h_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
 
         std::vector<double> dyn1(N_ + 1);
         std::vector<double> dyn2(N_ + 1);
         std::vector<double> dyn3(N_ + 1);
         std::vector<double> dyn4(N_ + 1);
+        std::vector<double> dyn5(N_ + 1);
+        std::vector<double> dyn6(N_ + 1);
+        std::vector<double> dyn7(N_ + 1);
+        std::vector<double> dyn8(N_ + 1);
 
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, z_vector.data(), 1, 0.0, dyn1.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, w_vector.data(), 1, 0.0, dyn2.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, theta_vector.data(), 1, 0.0, dyn3.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, theta_vector.data(), 1, 0.0, dyn2.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, w_vector.data(), 1, 0.0, dyn3.data(), 1);
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, q_vector.data(), 1, 0.0, dyn4.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, y_vector.data(), 1, 0.0, dyn1.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, psi_vector.data(), 1, 0.0, dyn2.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, v_vector.data(), 1, 0.0, dyn3.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, r_vector.data(), 1, 0.0, dyn4.data(), 1);
 
-        std::vector<double> X1_matrix_flat(4 * (N_ + 1));
-        std::vector<double> U_matrix_flat(3 * (N_ + 1));
+        std::vector<double> X1_matrix_flat(8 * (N_ + 1));
+        std::vector<double> U_matrix_flat(4 * (N_ + 1));
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             X1_matrix_flat[i] = z_vector[i];
-            X1_matrix_flat[(N_ + 1) + i] = w_vector[i];
-            X1_matrix_flat[2 * (N_ + 1) + i] = theta_vector[i];
+            X1_matrix_flat[(N_ + 1) + i] = theta_vector[i];
+            X1_matrix_flat[2 * (N_ + 1) + i] = w_vector[i];
             X1_matrix_flat[3 * (N_ + 1) + i] = q_vector[i];
+            X1_matrix_flat[4 * (N_ + 1) + i] = y_vector[i];
+            X1_matrix_flat[5 * (N_ + 1) + i] = psi_vector[i];
+            X1_matrix_flat[6 * (N_ + 1) + i] = v_vector[i];
+            X1_matrix_flat[7 * (N_ + 1) + i] = r_vector[i];
         }
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             U_matrix_flat[i] = delta_v_vector[i];
             U_matrix_flat[(N_ + 1) + i] = delta_m_vector[i];
             U_matrix_flat[2 * (N_ + 1) + i] = delta_s_vector[i];
+            U_matrix_flat[3 * (N_ + 1) + i] = delta_h_vector[i];
         }
 
-        std::vector<double> X2_matrix_flat(4 * (N_ + 1), 0.0);
+        std::vector<double> X2_matrix_flat(8 * (N_ + 1), 0.0);
 
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 4, 1.0, &A_[0][0], 4, X1_matrix_flat.data(), (N_ + 1), 0.0, X2_matrix_flat.data(), (N_ + 1));
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 3, 1.0, &B_[0][0], 3, U_matrix_flat.data(), (N_ + 1), 1.0, X2_matrix_flat.data(), (N_ + 1));
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 8, (N_ + 1), 8, 1.0, &A_[0][0], 8, X1_matrix_flat.data(), (N_ + 1), 0.0, X2_matrix_flat.data(), (N_ + 1));
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 8, (N_ + 1), 4, 1.0, &B_[0][0], 4, U_matrix_flat.data(), (N_ + 1), 1.0, X2_matrix_flat.data(), (N_ + 1));
 
         std::vector<double> z_x2(N_ + 1);
-        std::vector<double> w_x2(N_ + 1);
         std::vector<double> theta_x2(N_ + 1);
+        std::vector<double> w_x2(N_ + 1);
         std::vector<double> q_x2(N_ + 1);
+        std::vector<double> y_x2(N_ + 1);
+        std::vector<double> psi_x2(N_ + 1);
+        std::vector<double> v_x2(N_ + 1);
+        std::vector<double> r_x2(N_ + 1);
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             z_x2[i] = X2_matrix_flat[i];
-            w_x2[i] = X2_matrix_flat[(N_ + 1) + i];
-            theta_x2[i] = X2_matrix_flat[2 * (N_ + 1) + i];
+            theta_x2[i] = X2_matrix_flat[(N_ + 1) + i];
+            w_x2[i] = X2_matrix_flat[2 * (N_ + 1) + i];
             q_x2[i] = X2_matrix_flat[3 * (N_ + 1) + i];
+            y_x2[i] = X2_matrix_flat[4 * (N_ + 1) + i];
+            psi_x2[i] = X2_matrix_flat[5 * (N_ + 1) + i];
+            v_x2[i] = X2_matrix_flat[6 * (N_ + 1) + i];
+            r_x2[i] = X2_matrix_flat[7 * (N_ + 1) + i];
         }
 
         std::vector<double> g1(N_ + 1);
         std::vector<double> g2(N_ + 1);
         std::vector<double> g3(N_ + 1);
         std::vector<double> g4(N_ + 1);
+        std::vector<double> g5(N_ + 1);
+        std::vector<double> g6(N_ + 1);
+        std::vector<double> g7(N_ + 1);
+        std::vector<double> g8(N_ + 1);
 
         vdSub(N_ + 1, dyn1.data(), z_x2.data(), g1.data());
-        vdSub(N_ + 1, dyn2.data(), w_x2.data(), g2.data());
-        vdSub(N_ + 1, dyn3.data(), theta_x2.data(), g3.data());
+        vdSub(N_ + 1, dyn2.data(), theta_x2.data(), g2.data());
+        vdSub(N_ + 1, dyn3.data(), w_x2.data(), g3.data());
         vdSub(N_ + 1, dyn4.data(), q_x2.data(), g4.data());
+        vdSub(N_ + 1, dyn5.data(), y_x2.data(), g5.data());
+        vdSub(N_ + 1, dyn6.data(), psi_x2.data(), g6.data());
+        vdSub(N_ + 1, dyn7.data(), v_x2.data(), g7.data());
+        vdSub(N_ + 1, dyn8.data(), r_x2.data(), g8.data());
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             g[i] = g1[i];
             g[(N_ + 1) + i] = g2[i];
             g[2 * (N_ + 1) + i] = g3[i];
             g[3 * (N_ + 1) + i] = g4[i];
+            g[4 * (N_ + 1) + i] = g5[i];
+            g[5 * (N_ + 1) + i] = g6[i];
+            g[6 * (N_ + 1) + i] = g7[i];
+            g[7 * (N_ + 1) + i] = g8[i];
         }
         return true;
     }
@@ -350,10 +416,10 @@ public:
         std::cout << "Finalizing solution" << std::endl;
 
         // Ensure solution_x is 7 * (N + 1)
-        solution_x_.resize(7 * (N_ + 1));
+        solution_x_.resize(12 * (N_ + 1));
         
         // Copy the first 4 * (N + 1) elements from the x array
-        for (Index i = 0; i < 4 * (N_ + 1); ++i) {
+        for (Index i = 0; i < 8 * (N_ + 1); ++i) {
             solution_x_[i] = x[i];
         }
         
@@ -366,7 +432,7 @@ public:
 
         // Copy the remaining 3 * (N + 1) elements from the x array
         for (Index i = 0; i < 1 * (N_ + 1); ++i) {
-            solution_x_[6* (N_ + 1) + i] = -x[6 * (N_ + 1) + i]; //-
+            solution_x_[10* (N_ + 1) + i] = -x[10 * (N_ + 1) + i]; //-
         }
         
         final_obj_value_ = obj_value;         
@@ -379,28 +445,46 @@ public:
         }
 
         std::vector<double> z_vector(solution_x_.begin(), solution_x_.begin() + (N_ + 1));
-        std::vector<double> w_vector(solution_x_.begin() + (N_ + 1), solution_x_.begin() + 2 * (N_ + 1));
-        std::vector<double> theta_vector(solution_x_.begin() + 2 * (N_ + 1), solution_x_.begin() + 3 * (N_ + 1));
+        std::vector<double> theta_vector(solution_x_.begin() + (N_ + 1), solution_x_.begin() + 2 * (N_ + 1));
+        std::vector<double> w_vector(solution_x_.begin() + 2 * (N_ + 1), solution_x_.begin() + 3 * (N_ + 1));
         std::vector<double> q_vector(solution_x_.begin() + 3 * (N_ + 1), solution_x_.begin() + 4 * (N_ + 1));
-        std::vector<double> delta_v_vector(solution_x_.begin() + 4 * (N_ + 1), solution_x_.begin() + 5 * (N_ + 1));
-        std::vector<double> delta_m_vector(solution_x_.begin() + 5 * (N_ + 1), solution_x_.begin() + 6 * (N_ + 1));
-        std::vector<double> delta_s_vector(solution_x_.begin() + 6 * (N_ + 1), solution_x_.end());
+        std::vector<double> y_vector(solution_x_.begin() + 4 * (N_ + 1), solution_x_.begin() + 5 * (N_ + 1));
+        std::vector<double> psi_vector(solution_x_.begin() + 5 * (N_ + 1), solution_x_.begin() + 6 * (N_ + 1));
+        std::vector<double> v_vector(solution_x_.begin() + 6 * (N_ + 1), solution_x_.begin() + 7 * (N_ + 1));
+        std::vector<double> r_vector(solution_x_.begin() + 7 * (N_ + 1), solution_x_.begin() + 8 * (N_ + 1));
+
+        std::vector<double> delta_v_vector(solution_x_.begin() + 8 * (N_ + 1), solution_x_.begin() + 9 * (N_ + 1));
+        std::vector<double> delta_m_vector(solution_x_.begin() + 9 * (N_ + 1), solution_x_.begin() + 10 * (N_ + 1));
+        std::vector<double> delta_s_vector(solution_x_.begin() + 10 * (N_ + 1), solution_x_.begin() + 11 * (N_ + 1));
+        std::vector<double> delta_h_vector(solution_x_.begin() + 11 * (N_ + 1), solution_x_.end());
 
         std::vector<std::vector<double>> z_2d(1, z_vector);
-        std::vector<std::vector<double>> w_2d(1, w_vector);
-        std::vector<std::vector<double>> theta_2d(1, theta_vector);
+        std::vector<std::vector<double>> theta_2d(1, w_vector);
+        std::vector<std::vector<double>> w_2d(1, theta_vector);
         std::vector<std::vector<double>> q_2d(1, q_vector);
+        std::vector<std::vector<double>> y_2d(1, y_vector);
+        std::vector<std::vector<double>> psi_2d(1, psi_vector);
+        std::vector<std::vector<double>> v_2d(1, v_vector);
+        std::vector<std::vector<double>> r_2d(1, r_vector);
+
         std::vector<std::vector<double>> delta_v_2d(1, delta_v_vector);
         std::vector<std::vector<double>> delta_m_2d(1, delta_s_vector);
         std::vector<std::vector<double>> delta_s_2d(1, delta_m_vector);
+        std::vector<std::vector<double>> delta_h_2d(1, delta_h_vector);
 
         std::vector<std::vector<double>> bernstein_z = BernsteinPoly(z_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_w = BernsteinPoly(w_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_theta = BernsteinPoly(theta_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_w = BernsteinPoly(w_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_q = BernsteinPoly(q_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_y = BernsteinPoly(y_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_psi = BernsteinPoly(psi_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_v = BernsteinPoly(v_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_r = BernsteinPoly(r_2d, final_time_, 0, tf_);
+
         std::vector<std::vector<double>> bernstein_delta_v = BernsteinPoly(delta_v_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_delta_m = BernsteinPoly(delta_s_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_delta_s = BernsteinPoly(delta_m_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_delta_h = BernsteinPoly(delta_h_2d, final_time_, 0, tf_);
 
         auto flatten = [](const std::vector<std::vector<double>>& input) {
             std::vector<double> output;
@@ -417,12 +501,23 @@ public:
         writeToCSV(bebot_.getNodes(), theta_vector, "theta_controlpoints.csv");
         writeToCSV(final_time_, flatten(bernstein_q), "q.csv");
         writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_y), "y.csv");
+        writeToCSV(bebot_.getNodes(), y_vector, "y_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_psi), "psi.csv");
+        writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_v), "v.csv");
+        writeToCSV(bebot_.getNodes(), v_vector, "v_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_r), "r.csv");
+        writeToCSV(bebot_.getNodes(), r_vector, "r_controlpoints.csv");
+
         writeToCSV(final_time_, flatten(bernstein_delta_v), "delta_v.csv");
         writeToCSV(bebot_.getNodes(), delta_v_vector, "delta_v_controlpoints.csv");
         writeToCSV(final_time_, flatten(bernstein_delta_m), "delta_m.csv");
         writeToCSV(bebot_.getNodes(), delta_m_vector, "delta_m_controlpoints.csv");
         writeToCSV(final_time_, flatten(bernstein_delta_s), "delta_s.csv");
         writeToCSV(bebot_.getNodes(), delta_s_vector, "delta_s_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_delta_h), "delta_h.csv");
+        writeToCSV(bebot_.getNodes(), delta_h_vector, "delta_h_controlpoints.csv");
         std::cout << "Solution finalized and written to CSV files" << std::endl;
 
     }
