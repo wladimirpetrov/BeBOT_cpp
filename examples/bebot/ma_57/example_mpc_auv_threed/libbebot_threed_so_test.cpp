@@ -152,12 +152,12 @@ int main() {
     // get / print solution vector
     int n_vars = 12*(N+1);
     std::vector<double> sol(n_vars);
-    get_solution(prob, sol.data(), n_vars);
-    std::cout << "Solution (first 12*(N+1) vars):\n";
-    for(int i=0; i<n_vars; ++i){
-      std::cout << sol[i] << ( (i%10==9) ? "\n" : " " );
-    }
+    //get_solution(prob, sol.data(), n_vars);
+    //std::cout << "Solution (first 12*(N+1) vars):\n";
+    //for(int i=0; i<n_vars; ++i){
+    //  std::cout << sol[i] << ( (i%10==9) ? "\n" : " " );
+    //}
 
-    destroy_point_set_problem(prob);
+    //destroy_point_set_problem(prob);
     return 0;
 }

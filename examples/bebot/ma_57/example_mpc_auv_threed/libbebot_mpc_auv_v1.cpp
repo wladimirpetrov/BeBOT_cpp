@@ -201,7 +201,7 @@ public:
     }
 
     virtual bool get_starting_point(Index n, bool init_x, Number* x, bool init_z, Number* z_L, Number* z_U, Index m, bool init_lambda, Number* lambda) {
-        std::fill(x, x + n, 1);
+        std::fill(x, x + n, 2);
         return true;
     }
 
@@ -211,10 +211,10 @@ public:
         const double w6 = 20.0;
         const double w7 = 20.0;
 
-        const double w3 = 1.0;
-        const double w4 = 50.00;
-        const double w5 = 1.0;
-        const double w8 = 1.0;
+        //const double w3 = 1.0;
+        //const double w4 = 50.00;
+        //const double w5 = 1.0;
+        //const double w8 = 1.0;
 
         obj_value = 0.0;
 
@@ -267,7 +267,7 @@ public:
 
 
         //obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w6 * y_diff_sum + w7 * psi_diff_sum + w3 * dv_sum + w4 * dm_sum + w5 * ds_sum + w8 * dh_sum;
-        obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w6 * y_diff_sum + w7 * psi_diff_sum + w3;
+        obj_value = w1 * z_diff_sum + w2 * theta_diff_sum + w6 * y_diff_sum + w7 * psi_diff_sum;
 
         return true;
     }
@@ -455,6 +455,7 @@ public:
         std::vector<double> w_vector(solution_x_.begin() + 2 * (N_ + 1), solution_x_.begin() + 3 * (N_ + 1));
         std::vector<double> q_vector(solution_x_.begin() + 3 * (N_ + 1), solution_x_.begin() + 4 * (N_ + 1));
         std::vector<double> y_vector(solution_x_.begin() + 4 * (N_ + 1), solution_x_.begin() + 5 * (N_ + 1));
+        
         std::vector<double> psi_vector(solution_x_.begin() + 5 * (N_ + 1), solution_x_.begin() + 6 * (N_ + 1));
         std::vector<double> v_vector(solution_x_.begin() + 6 * (N_ + 1), solution_x_.begin() + 7 * (N_ + 1));
         std::vector<double> r_vector(solution_x_.begin() + 7 * (N_ + 1), solution_x_.begin() + 8 * (N_ + 1));
@@ -475,24 +476,24 @@ public:
         };
 
         // After unpacking:
-        print_vec("z_vector",        z_vector);
-        print_vec("theta_vector",    theta_vector);
-        print_vec("w_vector",        w_vector);
-        print_vec("q_vector",        q_vector);
-        print_vec("y_vector",        y_vector);
-        print_vec("psi_vector",      psi_vector);
-        print_vec("v_vector",        v_vector);
-        print_vec("r_vector",        r_vector);
+        // print_vec("z_vector",        z_vector);
+        // print_vec("theta_vector",    theta_vector);
+        // print_vec("w_vector",        w_vector);
+        // print_vec("q_vector",        q_vector);
+        // print_vec("y_vector",        y_vector);
+        // print_vec("psi_vector",      psi_vector);
+        // print_vec("v_vector",        v_vector);
+        // print_vec("r_vector",        r_vector);
 
-        print_vec("delta_v_vector",  delta_v_vector);
-        print_vec("delta_m_vector",  delta_m_vector);
-        print_vec("delta_s_vector",  delta_s_vector);
-        print_vec("delta_h_vector",  delta_h_vector);
+        // print_vec("delta_v_vector",  delta_v_vector);
+        // print_vec("delta_m_vector",  delta_m_vector);
+        // print_vec("delta_s_vector",  delta_s_vector);
+        // print_vec("delta_h_vector",  delta_h_vector);
 
 
         std::vector<std::vector<double>> z_2d(1, z_vector);
-        std::vector<std::vector<double>> theta_2d(1, w_vector);
-        std::vector<std::vector<double>> w_2d(1, theta_vector);
+        std::vector<std::vector<double>> theta_2d(1, theta_vector);
+        std::vector<std::vector<double>> w_2d(1, w_vector);
         std::vector<std::vector<double>> q_2d(1, q_vector);
         std::vector<std::vector<double>> y_2d(1, y_vector);
         std::vector<std::vector<double>> psi_2d(1, psi_vector);
@@ -500,8 +501,8 @@ public:
         std::vector<std::vector<double>> r_2d(1, r_vector);
 
         std::vector<std::vector<double>> delta_v_2d(1, delta_v_vector);
-        std::vector<std::vector<double>> delta_m_2d(1, delta_s_vector);
-        std::vector<std::vector<double>> delta_s_2d(1, delta_m_vector);
+        std::vector<std::vector<double>> delta_m_2d(1, delta_m_vector);
+        std::vector<std::vector<double>> delta_s_2d(1, delta_s_vector);
         std::vector<std::vector<double>> delta_h_2d(1, delta_h_vector);
 
         std::vector<std::vector<double>> bernstein_z = BernsteinPoly(z_2d, final_time_, 0, tf_);
@@ -514,8 +515,8 @@ public:
         std::vector<std::vector<double>> bernstein_r = BernsteinPoly(r_2d, final_time_, 0, tf_);
 
         std::vector<std::vector<double>> bernstein_delta_v = BernsteinPoly(delta_v_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_delta_m = BernsteinPoly(delta_s_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_delta_s = BernsteinPoly(delta_m_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_delta_m = BernsteinPoly(delta_m_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_delta_s = BernsteinPoly(delta_s_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_delta_h = BernsteinPoly(delta_h_2d, final_time_, 0, tf_);
 
         auto flatten = [](const std::vector<std::vector<double>>& input) {
@@ -533,8 +534,10 @@ public:
         writeToCSV(bebot_.getNodes(), theta_vector, "theta_controlpoints.csv");
         writeToCSV(final_time_, flatten(bernstein_q), "q.csv");
         writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints.csv");
+
         writeToCSV(final_time_, flatten(bernstein_y), "y.csv");
         writeToCSV(bebot_.getNodes(), y_vector, "y_controlpoints.csv");
+        
         writeToCSV(final_time_, flatten(bernstein_psi), "psi.csv");
         writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints.csv");
         writeToCSV(final_time_, flatten(bernstein_v), "v.csv");
@@ -679,8 +682,34 @@ extern "C" {
         app->Options()->SetStringValue("jacobian_approximation", "finite-difference-values");
         app->Options()->SetStringValue("hessian_approximation", "limited-memory");
         app->Options()->SetIntegerValue("max_iter", 5000);
-        app->Options()->SetNumericValue("tol", 1e-3);
+        app->Options()->SetNumericValue("tol", 1e-4);
+        //app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
         app->Options()->SetIntegerValue("print_level", 0); 
+        //app->Options()->SetStringValue("nlp_scaling_method", "gradient-based");
+        //app->Options()->SetIntegerValue("max_line_search_step_retries", 50);
+        //app->Options()->SetNumericValue("alpha_for_y", 0.6);
+
+
+
+        //app->Options()->SetNumericValue("finite_difference_rel_step", 1e-4);
+        //app->Options()->SetNumericValue("finite_difference_abs_step", 1e-8);
+        //app->Options()->SetNumericValue("tol",              1e-3);
+        //app->Options()->SetNumericValue("constr_viol_tol",  1e-4);
+        //app->Options()->SetNumericValue("dual_inf_tol",     1e-4);
+
+        //---- give the line-search more chances ----
+        //app->Options()->SetIntegerValue("max_line_search_step_retries",  20);
+        //app->Options()->SetNumericValue("alpha_for_y", 0.6);    // trial fraction for filter
+        //app->Options()->SetNumericValue("beta_for_y",  0.4);
+
+        //---- (optionally) loosen “acceptable” termination ----
+        app->Options()->SetNumericValue("acceptable_tol",        1e-4);
+        //app->Options()->SetNumericValue("acceptable_obj_change_tol", 1e-2);
+        //app->Options()->SetIntegerValue("acceptable_iter",      5);
+
+        //app->Options()->SetStringValue ("derivative_test",      "first-order");
+        //app->Options()->SetStringValue ("derivative_test_print_all","yes");
+
         app->RethrowNonIpoptException(true);
         ApplicationReturnStatus status = app->Initialize();
         if (status != Solve_Succeeded) {
