@@ -97,28 +97,28 @@ public:
         //x_u[3 * (N_ + 1)] = q0_;
 
         // lower and upper bounds for delta_v values excluding the 1st one
-        for (int i = 4 * (N_ + 1) + 1; i < 5 * (N_ + 1); ++i) {
+        for (int i = 4 * (N_ + 1); i < 5 * (N_ + 1); ++i) {
             x_l[i] = delta_v_min_;
             x_u[i] = delta_v_max_;
         }
-        x_l[4 * (N_ + 1)] = delta_v0_; 
-        x_u[4 * (N_ + 1)] = delta_v0_; 
+        //x_l[4 * (N_ + 1)] = delta_v0_; 
+        //x_u[4 * (N_ + 1)] = delta_v0_; 
 
         // lower and upper bounds for delta_s values excluding the 1st one
-        for (int i = 5 * (N_ + 1) + 1; i < 6 * (N_ + 1); ++i) {
+        for (int i = 5 * (N_ + 1); i < 6 * (N_ + 1); ++i) {
             x_l[i] = delta_s_min_;
             x_u[i] = delta_s_max_;
         }
-        x_l[5 * (N_ + 1)] = delta_s0_; 
-        x_u[5 * (N_ + 1)] = delta_s0_; 
+        //x_l[5 * (N_ + 1)] = delta_s0_; 
+        //x_u[5 * (N_ + 1)] = delta_s0_; 
 
         // lower and upper bounds for delta_m values excluding the 1st one
-        for (int i = 6 * (N_ + 1) + 1; i < 7 * (N_ + 1); ++i) {
+        for (int i = 6 * (N_ + 1); i < 7 * (N_ + 1); ++i) {
             x_l[i] = delta_m_min_;
             x_u[i] = delta_m_max_;
         }
-        x_l[6 * (N_ + 1)] = delta_m0_; 
-        x_u[6 * (N_ + 1)] = delta_m0_; 
+        //x_l[6 * (N_ + 1)] = delta_m0_; 
+        //x_u[6 * (N_ + 1)] = delta_m0_; 
 
         // Print constraint bounds if needed
             //for (Index i = 0; i < 7 * (N_ + 1); ++i) {
@@ -621,8 +621,8 @@ public:
 };
 
 int main() {
-    int N = 30;
-    double tf = 10.0;
+    int N = 10;
+    double tf = 100.0;
     double delta_v_max = 30.0;
     double delta_v_min = -30.0;
     double delta_s_max = 30.0;
@@ -641,13 +641,13 @@ int main() {
     double w0 = 0.1;
     double theta0 = 0.01;
     double q0 = 0.01;
-    double delta_v0 = -20;
-    double delta_s0 = -5.0;
-    double delta_m0 = -300.00;
+    double delta_v0 = 0;
+    double delta_s0 = 0.0;
+    double delta_m0 = 0.00;
 
     double zf = -25.0;
     double thetaf = 0.0;
-    double speed = 2.72;
+    double speed = 5.0;
 
     std::vector<double> A_flat;
     std::vector<double> B_flat;
