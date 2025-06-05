@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <cmath>
 #include "../../../../include/bebot.h"
 #include "../../../../include/bernsteinpoly.h"
 #include <iomanip>
@@ -23,7 +24,7 @@ public:
         double v0, double psi0,  double r0,
         double x0,  double y0, 
         double delta_v0, double delta_s0, double delta_m0, double delta_h0, double delta_n0,
-        double zf, double thetaf, double yf, double psif, double xf,
+        double zf, double thetaf, double xf, double yf, double psif,
         double a11, double a12, double a13, double a14, 
         double a21, double a22, double a23, double a24,
         double a31, double a32, double a33, double a34, 
@@ -48,7 +49,7 @@ public:
         v0_(v0), psi0_(psi0), r0_(r0),
         x0_(x0), y0_(y0), 
         delta_v0_(delta_v0), delta_s0_(delta_s0), delta_m0_(delta_m0), delta_h0_(delta_h0), delta_n0_(delta_n0),
-        zf_(zf), thetaf_(thetaf), yf_(yf), xf_(xf), psif_(psif), bebot_(N, tf_), t0_(t0), tend_(tend) {
+        zf_(zf), thetaf_(thetaf), xf_(xf), yf_(yf), psif_(psif), bebot_(N, tf_), t0_(t0), tend_(tend) {
         std::cout << "Creating PointSetProblem instance" << std::endl;
 
         // Construct the A matrix
@@ -97,7 +98,7 @@ public:
     }
 
     virtual bool get_nlp_info(Index& n, Index& m, Index& nnz_jac_g, Index& nnz_h_lag, IndexStyleEnum& index_style) {
-        n = 14 * (N_ + 1); 
+        n = 14 * (N_ + 1) + 1; 
         m = 9 * (N_ + 1);
         nnz_jac_g = n * m;  
         nnz_h_lag = 0; 
@@ -110,7 +111,7 @@ public:
         std::vector<double> x_lower(n, -std::numeric_limits<double>::infinity());
         std::vector<double> x_upper(n, std::numeric_limits<double>::infinity());
         // z
-        for (int i = 1; i < N_ + 1; ++i) {
+        for (int i = 1; i < N_; ++i) {
             x_lower[i] = zmin_;
             x_upper[i] = zmax_;
         }
@@ -118,18 +119,18 @@ public:
         //x_lower[N_] = x_upper[N_] = zf_;
 
         // theta
-        for (int i = N_ + 1 + 1; i < 2 * (N_ + 1); ++i) {
+        for (int i = N_ + 1 + 1; i < 2 * (N_ + 1)-1; ++i) {
             x_lower[i] = thetamin_;
             x_upper[i] = thetamax_;
         }
         x_lower[(N_ + 1)] = x_upper[(N_ + 1)] = theta0_;
 
         // w
-        for (int i = 2 * (N_ + 1) + 1; i < 3 * (N_ + 1); ++i) {
+        for (int i = 2 * (N_ + 1) + 1; i < 3 * (N_ + 1)-1; ++i) {
             x_lower[i] = wmin_;
             x_upper[i] = wmax_;
         }
-        x_lower[2 * (N_ + 1)] = x_upper[2 * (N_ + 1)] = w0_;
+        x_lower[2 * (N_ + 1)] = x_upper[2 * (N_ + 1)-1] = w0_;
 
         // for (int i = 2 * (N_ + 1) + 1; i < 3 * (N_ + 1); ++i) {
         //     x_lower[i] = thetamin_;
@@ -138,28 +139,28 @@ public:
         // x_lower[2 * (N_ + 1)] = x_upper[2 * (N_ + 1)] = theta0_;
         
         // q
-        for (int i = 3 * (N_ + 1) + 1; i < 4 * (N_ + 1); ++i) {
+        for (int i = 3 * (N_ + 1) + 1; i < 4 * (N_ + 1)-1; ++i) {
             x_lower[i] = qmin_;
             x_upper[i] = qmax_;
         }
         x_lower[3 * (N_ + 1)] = x_upper[3 * (N_ + 1)] = q0_;//
 
         // y
-        for (int i = 4 * (N_ + 1) + 1; i < 5 * (N_ + 1); ++i) {
+        for (int i = 4 * (N_ + 1) + 1; i < 5 * (N_ + 1)-1; ++i) {
             x_lower[i] = vmin_;
             x_upper[i] = vmax_;
         }
         x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = v0_;
 
         // psi
-        for (int i = 5 * (N_ + 1) + 1; i < 6 * (N_ + 1); ++i) {
+        for (int i = 5 * (N_ + 1) + 1; i < 6 * (N_ + 1)-1; ++i) {
             x_lower[i] = psimin_;
             x_upper[i] = psimax_;
         }
         x_lower[5 * (N_ + 1)] = x_upper[5 * (N_ + 1)] = psi0_;
 
         // v
-        for (int i = 6 * (N_ + 1) + 1; i < 7 * (N_ + 1); ++i) {
+        for (int i = 6 * (N_ + 1) + 1; i < 7 * (N_ + 1)-1; ++i) {
             x_lower[i] = rmin_;
             x_upper[i] = rmax_;
         }
@@ -170,6 +171,7 @@ public:
             x_lower[i] = xmin_;
             x_upper[i] = xmax_;
         }
+        x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = x0_;
         //x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = r0_;
 
         // control input
@@ -177,6 +179,7 @@ public:
             x_lower[i] = ymin_;
             x_upper[i] = ymax_;
         }
+        x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = y0_;
         //x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = delta_v0_;
 
         for (int i = 9 * (N_ + 1); i < 10 * (N_ + 1); ++i) { // 9 * (N_ + 1) + 1
@@ -209,17 +212,53 @@ public:
         }
         //x_lower[11 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_h0_;
 
+        x_lower[n - 1] = 0.0;
+        x_upper[n - 1] = std::numeric_limits<double>::infinity();
         std::copy(x_lower.begin(), x_lower.end(), x_l);
         std::copy(x_upper.begin(), x_upper.end(), x_u);
 
         std::fill(g_l, g_l + m, 0);
         std::fill(g_u, g_u + m, 0);
 
+        {
+        // … your existing code to fill x_lower, x_upper, g_l, g_u …
+
+        // Copy into the output arrays:
+        std::copy(x_lower.begin(),  x_lower.end(),  x_l);
+        std::copy(x_upper.begin(),  x_upper.end(),  x_u);
+        std::fill(g_l, g_l + m, 0);
+        std::fill(g_u, g_u + m, 0);
+
+        // // Now print “x lower” and “x upper”:
+        // std::cout << "===== x lower bounds =====\n";
+        // for (Index i = 0; i < n; ++i) {
+        //     std::cout << "  x_l[" << i << "] = " << x_l[i] << "\n";
+        // }
+        // std::cout << "\n===== x upper bounds =====\n";
+        // for (Index i = 0; i < n; ++i) {
+        //     std::cout << "  x_u[" << i << "] = " << x_u[i] << "\n";
+        // }
+
+        // // Print “g lower” and “g upper” (all zeros in your case):
+        // std::cout << "\n===== g lower bounds =====\n";
+        // for (Index i = 0; i < m; ++i) {
+        //     std::cout << "  g_l[" << i << "] = " << g_l[i] << "\n";
+        // }
+        // std::cout << "\n===== g upper bounds =====\n";
+        // for (Index i = 0; i < m; ++i) {
+        //     std::cout << "  g_u[" << i << "] = " << g_u[i] << "\n";
+        // }
+
+        return true;
+    }
+
         return true;
     }
 
     virtual bool get_starting_point(Index n, bool init_x, Number* x, bool init_z, Number* z_L, Number* z_U, Index m, bool init_lambda, Number* lambda) {
-        std::fill(x, x + n, 1);
+        for(Index i=0; i<n-1; ++i) 
+            x[i] = 1.0;
+        x[n - 1] = tf_;
         return true;
     }
 
@@ -230,28 +269,28 @@ public:
         const double wpsi = 20.0;
         const double wx = 20.0;
 
-        //const double w3 = 1.0;
-        //const double w4 = 50.00;
-        //const double w5 = 1.0;
-        //const double w8 = 1.0;
-
         obj_value = 0.0;
+
+        double tf_1 = x[n - 1];
 
         std::vector<double> zf_vector(N_ + 1, zf_);
         std::vector<double> thetaf_vector(N_ + 1, thetaf_);
+        std::vector<double> xf_vector(N_ + 1, xf_);
         std::vector<double> yf_vector(N_ + 1, yf_);
         std::vector<double> psif_vector(N_ + 1, psif_);
-        std::vector<double> xf_vector(N_ + 1, xf_);
+        
 
         std::vector<double> z_vector(x, x + (N_ + 1));
         std::vector<double> theta_vector(x + 1 * (N_ + 1), x + 2 * (N_ + 1));
-        std::vector<double> y_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
+        std::vector<double> x_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
+        std::vector<double> y_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
         std::vector<double> psi_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
 
-        std::vector<double> dv_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
-        std::vector<double> dm_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
-        std::vector<double> ds_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
-        std::vector<double> dh_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
+        std::vector<double> dv_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
+        std::vector<double> dm_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
+        std::vector<double> ds_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
+        std::vector<double> dh_vector(x + 12 * (N_ + 1), x + 13 * (N_ + 1));
+        std::vector<double> dn_vector(x + 13 * (N_ + 1), x + 14 * (N_ + 1));
 
         std::vector<double> z_diff(N_ + 1);
         std::vector<double> theta_diff(N_ + 1);
@@ -262,6 +301,7 @@ public:
         std::vector<double> dm_sqr(N_ + 1);
         std::vector<double> ds_sqr(N_ + 1);
         std::vector<double> dh_sqr(N_ + 1);
+        std::vector<double> dn_sqr(N_ + 1);
 
         vdSub(N_ + 1, z_vector.data(), zf_vector.data(), z_diff.data());
         vdSub(N_ + 1, theta_vector.data(), thetaf_vector.data(), theta_diff.data());
@@ -279,6 +319,28 @@ public:
         double y_diff_sum = cblas_dasum(N_ + 1, y_diff.data(), 1);
         double psi_diff_sum = cblas_dasum(N_ + 1, psi_diff.data(), 1);
 
+        // Print x_vector:
+        std::cout << "x_vector = [";
+        for (int i = 0; i <= N_; ++i) {
+            std::cout << x_vector[i];
+            if (i < N_) std::cout << ", ";
+        }
+        std::cout << "]\n";
+
+        // Print xf_vector:
+        std::cout << "xf_vector = [";
+        for (int i = 0; i <= N_; ++i) {
+            std::cout << xf_vector[i];
+            if (i < N_) std::cout << ", ";
+        }
+        std::cout << "]\n";
+
+        double x_diff         = x_vector[N_] - xf_vector[N_];
+        std::cout << "x_vector[N_]   = " << x_vector[N_]   << "\n";
+        std::cout << "xf_vector[N_]  = " << xf_vector[N_]  << "\n";
+        double x_diff_squared = x_diff * x_diff;
+        
+
 
         double dv_sum = cblas_dasum(N_ + 1, dv_sqr.data(), 1);
         double dm_sum = cblas_dasum(N_ + 1, dm_sqr.data(), 1);
@@ -287,29 +349,42 @@ public:
 
 
         //obj_value = wz * z_diff_sum + wtheta * theta_diff_sum + wy * y_diff_sum + wpsi * psi_diff_sum + w3 * dv_sum + w4 * dm_sum + w5 * ds_sum + w8 * dh_sum;
-        obj_value = wz * z_diff_sum + wtheta * theta_diff_sum + wy * y_diff_sum + wpsi * psi_diff_sum;
+        obj_value = wz * z_diff_sum + wtheta * theta_diff_sum + wpsi  * psi_diff_sum + wy * y_diff_sum + wx * x_diff_squared + tf_1; // 
 
         return true;
     }
 
     virtual bool eval_g(Index n, const Number* x, bool new_x, Index m, Number* g) {
-        Bebot Bebot(N_, tf_);
+        Bebot Bebot(N_, x[n - 1]);
         Bebot.calculate();
         const auto& Dm = Bebot.getDifferentiationMatrix();
+        
+        std::cout << "tf (x[n-1]) = " << x[n - 1] << std::endl;
+
+        // // Assume Dm is a flat vector of length (N_+1)*(N_+1).  Print it as an (N_+1)x(N_+1) matrix:
+        // std::cout << "Dm = " << std::endl;
+        // for (int i = 0; i < N_ + 1; ++i) {
+        //     for (int j = 0; j < N_ + 1; ++j) {
+        //         std::cout << Dm[i * (N_ + 1) + j] << "  ";
+        //     }
+        //     std::cout << std::endl;
+        // }
 
         std::vector<double> z_vector(x, x + (N_ + 1));
         std::vector<double> theta_vector(x + 1 * (N_ + 1), x + 2 * (N_ + 1));
         std::vector<double> w_vector(x + 2 * (N_ + 1), x + 3 * (N_ + 1));
         std::vector<double> q_vector(x + 3 * (N_ + 1), x + 4 * (N_ + 1));
-        std::vector<double> y_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
+        std::vector<double> v_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
         std::vector<double> psi_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
-        std::vector<double> v_vector(x + 6 * (N_ + 1), x + 7 * (N_ + 1));
-        std::vector<double> r_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
+        std::vector<double> r_vector(x + 6 * (N_ + 1), x + 7 * (N_ + 1));
+        std::vector<double> x_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
+        std::vector<double> y_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
 
-        std::vector<double> delta_v_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
-        std::vector<double> delta_m_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
-        std::vector<double> delta_s_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
-        std::vector<double> delta_h_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
+        std::vector<double> delta_v_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
+        std::vector<double> delta_m_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
+        std::vector<double> delta_s_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
+        std::vector<double> delta_h_vector(x + 12 * (N_ + 1), x + 13 * (N_ + 1));
+        std::vector<double> delta_n_vector(x + 13 * (N_ + 1), x + 14 * (N_ + 1));
 
         
         std::vector<double> dyn1(N_ + 1);
@@ -320,62 +395,111 @@ public:
         std::vector<double> dyn6(N_ + 1);
         std::vector<double> dyn7(N_ + 1);
         std::vector<double> dyn8(N_ + 1);
+        std::vector<double> dyn9(N_ + 1);
 
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, z_vector.data(), 1, 0.0, dyn1.data(), 1);
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, theta_vector.data(), 1, 0.0, dyn2.data(), 1);
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, w_vector.data(), 1, 0.0, dyn3.data(), 1);
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, q_vector.data(), 1, 0.0, dyn4.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, y_vector.data(), 1, 0.0, dyn5.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, v_vector.data(), 1, 0.0, dyn5.data(), 1);
         cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, psi_vector.data(), 1, 0.0, dyn6.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, v_vector.data(), 1, 0.0, dyn7.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, r_vector.data(), 1, 0.0, dyn8.data(), 1);
-        
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, r_vector.data(), 1, 0.0, dyn7.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, x_vector.data(), 1, 0.0, dyn8.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, y_vector.data(), 1, 0.0, dyn9.data(), 1);
 
-        std::vector<double> X1_matrix_flat(8 * (N_ + 1));
-        std::vector<double> U_matrix_flat(4 * (N_ + 1));
+        std::vector<double> X1_matrix_flat(4 * (N_ + 1));
+        std::vector<double> U_matrix_flat(3 * (N_ + 1));
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             X1_matrix_flat[i] = z_vector[i];
             X1_matrix_flat[(N_ + 1) + i] = theta_vector[i];
             X1_matrix_flat[2 * (N_ + 1) + i] = w_vector[i];
             X1_matrix_flat[3 * (N_ + 1) + i] = q_vector[i];
-            X1_matrix_flat[4 * (N_ + 1) + i] = y_vector[i];
-            X1_matrix_flat[5 * (N_ + 1) + i] = psi_vector[i];
-            X1_matrix_flat[6 * (N_ + 1) + i] = v_vector[i];
-            X1_matrix_flat[7 * (N_ + 1) + i] = r_vector[i];
         }
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             U_matrix_flat[i] = delta_v_vector[i];
             U_matrix_flat[(N_ + 1) + i] = delta_m_vector[i];
             U_matrix_flat[2 * (N_ + 1) + i] = delta_s_vector[i];
-            U_matrix_flat[3 * (N_ + 1) + i] = delta_h_vector[i];
         }
 
-        std::vector<double> X2_matrix_flat(8 * (N_ + 1), 0.0);
+        std::vector<double> X2_matrix_flat(4 * (N_ + 1), 0.0);
 
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 8, (N_ + 1), 8, 1.0, &A_[0][0], 8, X1_matrix_flat.data(), (N_ + 1), 0.0, X2_matrix_flat.data(), (N_ + 1));
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 8, (N_ + 1), 4, 1.0, &B_[0][0], 4, U_matrix_flat.data(), (N_ + 1), 1.0, X2_matrix_flat.data(), (N_ + 1));
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 4, 1.0, &A_[0][0], 4, X1_matrix_flat.data(), (N_ + 1), 0.0, X2_matrix_flat.data(), (N_ + 1));
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 3, 1.0, &B_[0][0], 3, U_matrix_flat.data(), (N_ + 1), 1.0, X2_matrix_flat.data(), (N_ + 1));
+
+        std::vector<double> X1_matrix_flat_cd(3 * (N_ + 1));
+        std::vector<double> U_matrix_flat_cd(2 * (N_ + 1));
+
+        for (Index i = 0; i < (N_ + 1); ++i) {
+            X1_matrix_flat_cd[i] = v_vector[i];
+            X1_matrix_flat_cd[(N_ + 1) + i] = psi_vector[i];
+            X1_matrix_flat_cd[2 * (N_ + 1) + i] = r_vector[i];
+        }
+
+        for (Index i = 0; i < (N_ + 1); ++i) {
+            U_matrix_flat_cd[i] = delta_h_vector[i];
+            U_matrix_flat_cd[(N_ + 1) + i] = delta_n_vector[i];
+        }
+
+        std::vector<double> X2_matrix_flat_cd(3 * (N_ + 1), 0.0);
+
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, (N_ + 1), 3, 1.0, &C_[0][0], 3, X1_matrix_flat_cd.data(), (N_ + 1), 0.0, X2_matrix_flat_cd.data(), (N_ + 1));
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, (N_ + 1), 2, 1.0, &D_[0][0], 2, U_matrix_flat_cd.data(), (N_ + 1), 1.0, X2_matrix_flat_cd.data(), (N_ + 1));
+
+
 
         std::vector<double> z_x2(N_ + 1);
         std::vector<double> theta_x2(N_ + 1);
         std::vector<double> w_x2(N_ + 1);
         std::vector<double> q_x2(N_ + 1);
-        std::vector<double> y_x2(N_ + 1);
-        std::vector<double> psi_x2(N_ + 1);
         std::vector<double> v_x2(N_ + 1);
+        std::vector<double> psi_x2(N_ + 1);
         std::vector<double> r_x2(N_ + 1);
+
+        std::vector<double> x_x2(N_ + 1);
+        std::vector<double> y_x2(N_ + 1);
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             z_x2[i] = X2_matrix_flat[i];
             theta_x2[i] = X2_matrix_flat[(N_ + 1) + i];
             w_x2[i] = X2_matrix_flat[2 * (N_ + 1) + i];
             q_x2[i] = X2_matrix_flat[3 * (N_ + 1) + i];
-            y_x2[i] = X2_matrix_flat[4 * (N_ + 1) + i];
-            psi_x2[i] = X2_matrix_flat[5 * (N_ + 1) + i];
-            v_x2[i] = X2_matrix_flat[6 * (N_ + 1) + i];
-            r_x2[i] = X2_matrix_flat[7 * (N_ + 1) + i];
         }
+
+        for (Index i = 0; i < (N_ + 1); ++i) {
+            v_x2[i] = X2_matrix_flat_cd[i];
+            psi_x2[i] = X2_matrix_flat_cd[(N_ + 1) + i];
+            r_x2[i] = X2_matrix_flat_cd[2 * (N_ + 1) + i];
+        }
+
+        // // --- 1) Print psi_vector before any multiplication ---
+        // std::cout << "psi_vector (length " << (N_ + 1) << "): [";
+        // for (int i = 0; i < N_ + 1; ++i) {
+        //     std::cout << psi_vector[i];
+        //     if (i < N_) std::cout << ", ";
+        // }
+        // std::cout << "]\n\n";
+        // std::cout << "i |   psi_i    |  cos(psi_i)  |  sin(psi_i)  |   x_x2[i]    |   y_x2[i]\n";
+        // std::cout << "---------------------------------------------------------------------\n";
+        for (Index i = 0; i < N_ + 1; ++i) {
+            double u_i    = delta_n_vector[i] * 4.0;
+            double cospsi_i = std::cos(psi_vector[i]);
+            double sinpsi_i = std::sin(psi_vector[i]);
+            x_x2[i] = u_i * cospsi_i;
+            y_x2[i] = u_i * sinpsi_i;
+
+            // // print row‐by‐row
+            // std::cout << std::setw(2) << i << " | "
+            //         << std::setw(9)  << psi_vector[i] << " | "
+            //         << std::setw(11) << cospsi_i       << " | "
+            //         << std::setw(11) << sinpsi_i       << " | "
+            //         << std::setw(11) << x_x2[i]         << " | "
+            //         << std::setw(11) << y_x2[i]         << "\n";
+        }
+
+        // std::cout << "\n";
+        
 
         std::vector<double> g1(N_ + 1);
         std::vector<double> g2(N_ + 1);
@@ -385,15 +509,17 @@ public:
         std::vector<double> g6(N_ + 1);
         std::vector<double> g7(N_ + 1);
         std::vector<double> g8(N_ + 1);
+        std::vector<double> g9(N_ + 1);
 
         vdSub(N_ + 1, dyn1.data(), z_x2.data(), g1.data());
         vdSub(N_ + 1, dyn2.data(), theta_x2.data(), g2.data());
         vdSub(N_ + 1, dyn3.data(), w_x2.data(), g3.data());
         vdSub(N_ + 1, dyn4.data(), q_x2.data(), g4.data());
-        vdSub(N_ + 1, dyn5.data(), y_x2.data(), g5.data());
+        vdSub(N_ + 1, dyn5.data(), v_x2.data(), g5.data());
         vdSub(N_ + 1, dyn6.data(), psi_x2.data(), g6.data());
-        vdSub(N_ + 1, dyn7.data(), v_x2.data(), g7.data());
-        vdSub(N_ + 1, dyn8.data(), r_x2.data(), g8.data());
+        vdSub(N_ + 1, dyn7.data(), r_x2.data(), g7.data());
+        vdSub(N_ + 1, dyn8.data(), x_x2.data(), g8.data());
+        vdSub(N_ + 1, dyn9.data(), y_x2.data(), g9.data());
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             g[i] = g1[i];
@@ -404,6 +530,7 @@ public:
             g[5 * (N_ + 1) + i] = g6[i];
             g[6 * (N_ + 1) + i] = g7[i];
             g[7 * (N_ + 1) + i] = g8[i];
+            g[8 * (N_ + 1) + i] = g9[i];
         }
         
 
@@ -442,25 +569,27 @@ public:
         std::cout << "Finalizing solution" << std::endl;
 
         // Ensure solution_x is 7 * (N + 1)
-        solution_x_.resize(12 * (N_ + 1));
+        solution_x_.resize(14 * (N_ + 1) + 1);
         
         // Copy the first 4 * (N + 1) elements from the x array
-        for (Index i = 0; i < 12 * (N_ + 1); ++i) {
+        for (Index i = 0; i < 14 * (N_ + 1) + 1; ++i) {
             solution_x_[i] = x[i];
         }
         
         
 
         // Copy the remaining 3 * (N + 1) elements from the x array
-        for (Index i = 0; i < 2 * (N_ + 1); ++i) {
-            solution_x_[4* (N_ + 1) + i] = x[4 * (N_ + 1) + i]; //-
-        }
+        //for (Index i = 0; i < 2 * (N_ + 1); ++i) {
+        //    solution_x_[4* (N_ + 1) + i] = x[4 * (N_ + 1) + i]; //-
+        //}
 
         // Copy the remaining 3 * (N + 1) elements from the x array
         for (Index i = 0; i < 1 * (N_ + 1); ++i) {
-            solution_x_[10* (N_ + 1) + i] = -x[10 * (N_ + 1) + i]; //-
+            solution_x_[11* (N_ + 1) + i] = -x[11 * (N_ + 1) + i]; //-
         }
         
+        double tf_ = solution_x_.back();
+
         final_obj_value_ = obj_value;         
         bebot_ = Bebot(N_, tf_);
         bebot_.calculate();
@@ -474,16 +603,19 @@ public:
         std::vector<double> theta_vector(solution_x_.begin() + (N_ + 1), solution_x_.begin() + 2 * (N_ + 1));
         std::vector<double> w_vector(solution_x_.begin() + 2 * (N_ + 1), solution_x_.begin() + 3 * (N_ + 1));
         std::vector<double> q_vector(solution_x_.begin() + 3 * (N_ + 1), solution_x_.begin() + 4 * (N_ + 1));
-        std::vector<double> y_vector(solution_x_.begin() + 4 * (N_ + 1), solution_x_.begin() + 5 * (N_ + 1));
-        
+        std::vector<double> v_vector(solution_x_.begin() + 4 * (N_ + 1), solution_x_.begin() + 5 * (N_ + 1));      
         std::vector<double> psi_vector(solution_x_.begin() + 5 * (N_ + 1), solution_x_.begin() + 6 * (N_ + 1));
-        std::vector<double> v_vector(solution_x_.begin() + 6 * (N_ + 1), solution_x_.begin() + 7 * (N_ + 1));
-        std::vector<double> r_vector(solution_x_.begin() + 7 * (N_ + 1), solution_x_.begin() + 8 * (N_ + 1));
+        std::vector<double> r_vector(solution_x_.begin() + 6 * (N_ + 1), solution_x_.begin() + 7 * (N_ + 1));
 
-        std::vector<double> delta_v_vector(solution_x_.begin() + 8 * (N_ + 1), solution_x_.begin() + 9 * (N_ + 1));
-        std::vector<double> delta_m_vector(solution_x_.begin() + 9 * (N_ + 1), solution_x_.begin() + 10 * (N_ + 1));
-        std::vector<double> delta_s_vector(solution_x_.begin() + 10 * (N_ + 1), solution_x_.begin() + 11 * (N_ + 1));
-        std::vector<double> delta_h_vector(solution_x_.begin() + 11 * (N_ + 1), solution_x_.end());
+        std::vector<double> x_vector(solution_x_.begin() + 7 * (N_ + 1), solution_x_.begin() + 8 * (N_ + 1));
+        std::vector<double> y_vector(solution_x_.begin() + 8 * (N_ + 1), solution_x_.begin() + 9 * (N_ + 1));
+
+        std::vector<double> delta_v_vector(solution_x_.begin() + 9 * (N_ + 1), solution_x_.begin() + 10 * (N_ + 1));
+        std::vector<double> delta_m_vector(solution_x_.begin() + 10 * (N_ + 1), solution_x_.begin() + 11 * (N_ + 1));
+        std::vector<double> delta_s_vector(solution_x_.begin() + 11 * (N_ + 1), solution_x_.begin() + 12 * (N_ + 1));
+        std::vector<double> delta_h_vector(solution_x_.begin() + 12 * (N_ + 1), solution_x_.begin() + 13 * (N_ + 1));
+        std::vector<double> delta_n_vector(solution_x_.begin() + 13 * (N_ + 1), solution_x_.end() - 1);
+        
 
         // Helper to print any std::vector<double>
         auto print_vec = [&](const std::string& name, const std::vector<double>& v){
@@ -515,29 +647,37 @@ public:
         std::vector<std::vector<double>> theta_2d(1, theta_vector);
         std::vector<std::vector<double>> w_2d(1, w_vector);
         std::vector<std::vector<double>> q_2d(1, q_vector);
-        std::vector<std::vector<double>> y_2d(1, y_vector);
-        std::vector<std::vector<double>> psi_2d(1, psi_vector);
+
         std::vector<std::vector<double>> v_2d(1, v_vector);
+        std::vector<std::vector<double>> psi_2d(1, psi_vector);
         std::vector<std::vector<double>> r_2d(1, r_vector);
+
+        std::vector<std::vector<double>> x_2d(1, x_vector);
+        std::vector<std::vector<double>> y_2d(1, y_vector);
 
         std::vector<std::vector<double>> delta_v_2d(1, delta_v_vector);
         std::vector<std::vector<double>> delta_m_2d(1, delta_m_vector);
         std::vector<std::vector<double>> delta_s_2d(1, delta_s_vector);
         std::vector<std::vector<double>> delta_h_2d(1, delta_h_vector);
+        std::vector<std::vector<double>> delta_n_2d(1, delta_n_vector);
 
         std::vector<std::vector<double>> bernstein_z = BernsteinPoly(z_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_theta = BernsteinPoly(theta_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_w = BernsteinPoly(w_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_q = BernsteinPoly(q_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_y = BernsteinPoly(y_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_psi = BernsteinPoly(psi_2d, final_time_, 0, tf_);
+
         std::vector<std::vector<double>> bernstein_v = BernsteinPoly(v_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_psi = BernsteinPoly(psi_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_r = BernsteinPoly(r_2d, final_time_, 0, tf_);
+
+        std::vector<std::vector<double>> bernstein_x = BernsteinPoly(x_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_y = BernsteinPoly(y_2d, final_time_, 0, tf_);
 
         std::vector<std::vector<double>> bernstein_delta_v = BernsteinPoly(delta_v_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_delta_m = BernsteinPoly(delta_m_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_delta_s = BernsteinPoly(delta_s_2d, final_time_, 0, tf_);
         std::vector<std::vector<double>> bernstein_delta_h = BernsteinPoly(delta_h_2d, final_time_, 0, tf_);
+        std::vector<std::vector<double>> bernstein_delta_n = BernsteinPoly(delta_n_2d, final_time_, 0, tf_);
 
         auto flatten = [](const std::vector<std::vector<double>>& input) {
             std::vector<double> output;
@@ -555,15 +695,19 @@ public:
         writeToCSV(final_time_, flatten(bernstein_q), "q.csv");
         writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints.csv");
 
-        writeToCSV(final_time_, flatten(bernstein_y), "y.csv");
-        writeToCSV(bebot_.getNodes(), y_vector, "y_controlpoints.csv");
-        
-        writeToCSV(final_time_, flatten(bernstein_psi), "psi.csv");
-        writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints.csv");
+
         writeToCSV(final_time_, flatten(bernstein_v), "v.csv");
         writeToCSV(bebot_.getNodes(), v_vector, "v_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_psi), "psi.csv");
+        writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints.csv");
         writeToCSV(final_time_, flatten(bernstein_r), "r.csv");
         writeToCSV(bebot_.getNodes(), r_vector, "r_controlpoints.csv");
+
+
+        writeToCSV(final_time_, flatten(bernstein_x), "x.csv");
+        writeToCSV(bebot_.getNodes(), x_vector, "x_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_y), "y.csv");
+        writeToCSV(bebot_.getNodes(), y_vector, "y_controlpoints.csv");
 
         writeToCSV(final_time_, flatten(bernstein_delta_v), "delta_v.csv");
         writeToCSV(bebot_.getNodes(), delta_v_vector, "delta_v_controlpoints.csv");
@@ -573,6 +717,8 @@ public:
         writeToCSV(bebot_.getNodes(), delta_s_vector, "delta_s_controlpoints.csv");
         writeToCSV(final_time_, flatten(bernstein_delta_h), "delta_h.csv");
         writeToCSV(bebot_.getNodes(), delta_h_vector, "delta_h_controlpoints.csv");
+        writeToCSV(final_time_, flatten(bernstein_delta_n), "delta_n.csv");
+        writeToCSV(bebot_.getNodes(), delta_n_vector, "delta_n_controlpoints.csv");
         std::cout << "Solution finalized and written to CSV files" << std::endl;
 
     }
@@ -591,6 +737,8 @@ private:
     double delta_m_min_;
     double delta_h_max_;
     double delta_h_min_;
+    double delta_n_max_;
+    double delta_n_min_;
     double zmax_;
     double zmin_;
     double wmax_;  
@@ -599,35 +747,43 @@ private:
     double thetamin_;
     double qmax_;
     double qmin_;
-    double ymax_;
-    double ymin_;
-    double psimax_;  
-    double psimin_;
     double vmax_;
     double vmin_;
+    double psimax_;  
+    double psimin_;
     double rmax_;
     double rmin_;
+    double xmax_;
+    double xmin_;
+    double ymax_;
+    double ymin_;
     double z0_;
     double w0_;
     double theta0_;
     double q0_;
-    double y0_;
-    double psi0_;
+    
     double v0_;
+    double psi0_;
     double r0_;
+    double x0_;
+    double y0_;
     double delta_v0_;
     double delta_s0_;
     double delta_m0_;
     double delta_h0_;
+    double delta_n0_;
     double zf_;
     double thetaf_;
+    double xf_;
     double yf_;
     double psif_;
     double t0_;
     double tend_;
 
-    std::array<std::array<double, 8>, 8> A_;
-    std::array<std::array<double, 4>, 8> B_;
+    std::array<std::array<double, 4>, 4> A_;
+    std::array<std::array<double, 3>, 4> B_;
+    std::array<std::array<double, 3>, 3> C_;
+    std::array<std::array<double, 2>, 3> D_;
     Bebot bebot_;
     std::vector<Number> solution_u_;
     std::vector<Number> solution_x2_;
@@ -645,52 +801,126 @@ public:
 
 extern "C" {
     PointSetProblem* create_point_set_problem(int N, double tf, double delta_v_max, double delta_v_min, 
-        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min,
+        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min, double delta_n_max, double delta_n_min,
         double zmax, double zmin, double wmax, double wmin, double thetamax, double thetamin, double qmax, double qmin, 
-        double ymax, double ymin, double psimax, double psimin, double vmax, double vmin, double rmax, double rmin,
+        double vmax, double vmin, double psimax, double psimin, double rmax, double rmin, 
+        double xmax, double xmin, double ymax, double ymin, 
         double z0, double w0, double theta0, double q0,
-        double y0, double psi0, double v0, double r0, 
-        double delta_v0, double delta_s0, double delta_m0, double delta_h0,
-        double zf, double thetaf, double yf, double psif, 
-        double a11, double a12, double a13, double a14, double a15, double a16, double a17, double a18, 
-        double a21, double a22, double a23, double a24, double a25, double a26, double a27, double a28, 
-        double a31, double a32, double a33, double a34, double a35, double a36, double a37, double a38, 
-        double a41, double a42, double a43, double a44, double a45, double a46, double a47, double a48,
-        double a51, double a52, double a53, double a54, double a55, double a56, double a57, double a58,
-        double a61, double a62, double a63, double a64, double a65, double a66, double a67, double a68,
-        double a71, double a72, double a73, double a74, double a75, double a76, double a77, double a78,
-        double a81, double a82, double a83, double a84, double a85, double a86, double a87, double a88, 
-        double b11, double b12, double b13, double b14, 
-        double b21, double b22, double b23, double b24, 
-        double b31, double b32, double b33, double b34, 
-        double b41, double b42, double b43, double b44, 
-        double b51, double b52, double b53, double b54,
-        double b61, double b62, double b63, double b64,
-        double b71, double b72, double b73, double b74,
-        double b81, double b82, double b83, double b84,
+        double v0, double psi0, double r0, 
+        double x0, double y0, 
+        double delta_v0, double delta_s0, double delta_m0, double delta_h0, double delta_n0,
+        double zf, double thetaf, double xf, double yf, double psif, 
+        double a11, double a12, double a13, double a14, 
+        double a21, double a22, double a23, double a24, 
+        double a31, double a32, double a33, double a34, 
+        double a41, double a42, double a43, double a44, 
+        double b11, double b12, double b13, 
+        double b21, double b22, double b23, 
+        double b31, double b32, double b33, 
+        double b41, double b42, double b43, 
+        double c11, double c12, double c13, 
+        double c21, double c22, double c23, 
+        double c31, double c32, double c33, 
+        double d11, double d12,  
+        double d21, double d22, 
+        double d31, double d32,
         double t0, double tend) {
+
+         // Print out every incoming argument:
+        // std::cout << "==== create_point_set_problem called ====\n";
+        // std::cout << "N = " << N << "\n";
+        // std::cout << "tf = " << tf << "\n";
+
+        // std::cout << "delta_v_max = " << delta_v_max
+        //           << ", delta_v_min = " << delta_v_min << "\n";
+        // std::cout << "delta_s_max = " << delta_s_max
+        //           << ", delta_s_min = " << delta_s_min << "\n";
+        // std::cout << "delta_m_max = " << delta_m_max
+        //           << ", delta_m_min = " << delta_m_min << "\n";
+        // std::cout << "delta_h_max = " << delta_h_max
+        //           << ", delta_h_min = " << delta_h_min << "\n";
+        // std::cout << "delta_n_max = " << delta_n_max
+        //           << ", delta_n_min = " << delta_n_min << "\n\n";
+
+        // std::cout << "zmax = " << zmax << ", zmin = " << zmin << "\n";
+        // std::cout << "wmax = " << wmax << ", wmin = " << wmin << "\n";
+        // std::cout << "thetamax = " << thetamax << ", thetamin = " << thetamin << "\n";
+        // std::cout << "qmax = " << qmax << ", qmin = " << qmin << "\n\n";
+
+        // std::cout << "vmax = " << vmax << ", vmin = " << vmin << "\n";
+        // std::cout << "psimax = " << psimax << ", psimin = " << psimin << "\n";
+        // std::cout << "rmax = " << rmax << ", rmin = " << rmin << "\n\n";
+
+        // std::cout << "xmax = " << xmax << ", xmin = " << xmin << "\n";
+        // std::cout << "ymax = " << ymax << ", ymin = " << ymin << "\n\n";
+
+        // std::cout << "Initial states:\n";
+        // std::cout << "  z0 = " << z0 << ", w0 = " << w0
+        //           << ", theta0 = " << theta0 << ", q0 = " << q0 << "\n";
+        // std::cout << "  v0 = " << v0 << ", psi0 = " << psi0 << ", r0 = " << r0 << "\n";
+        // std::cout << "  x0 = " << x0 << ", y0 = " << y0 << "\n\n";
+
+        // std::cout << "Initial controls:\n";
+        // std::cout << "  delta_v0 = " << delta_v0
+        //           << ", delta_s0 = " << delta_s0
+        //           << ", delta_m0 = " << delta_m0
+        //           << ", delta_h0 = " << delta_h0
+        //           << ", delta_n0 = " << delta_n0 << "\n\n";
+
+        // std::cout << "Final targets:\n";
+        // std::cout << "  zf = " << zf
+        //           << ", thetaf = " << thetaf
+        //           << ", xf = " << xf
+        //           << ", yf = " << yf
+        //           << ", psif = " << psif << "\n\n";
+
+        // std::cout << "A‐matrix (4×4):\n";
+        // std::cout << "  [" << a11 << ", " << a12 << ", " << a13 << ", " << a14 << "]\n";
+        // std::cout << "  [" << a21 << ", " << a22 << ", " << a23 << ", " << a24 << "]\n";
+        // std::cout << "  [" << a31 << ", " << a32 << ", " << a33 << ", " << a34 << "]\n";
+        // std::cout << "  [" << a41 << ", " << a42 << ", " << a43 << ", " << a44 << "]\n\n";
+
+        // std::cout << "B‐matrix (4×3):\n";
+        // std::cout << "  [" << b11 << ", " << b12 << ", " << b13 << "]\n";
+        // std::cout << "  [" << b21 << ", " << b22 << ", " << b23 << "]\n";
+        // std::cout << "  [" << b31 << ", " << b32 << ", " << b33 << "]\n";
+        // std::cout << "  [" << b41 << ", " << b42 << ", " << b43 << "]\n\n";
+
+        // std::cout << "C‐matrix (3×3):\n";
+        // std::cout << "  [" << c11 << ", " << c12 << ", " << c13 << "]\n";
+        // std::cout << "  [" << c21 << ", " << c22 << ", " << c23 << "]\n";
+        // std::cout << "  [" << c31 << ", " << c32 << ", " << c33 << "]\n\n";
+
+        // std::cout << "D‐matrix (3×2):\n";
+        // std::cout << "  [" << d11 << ", " << d12 << "]\n";
+        // std::cout << "  [" << d21 << ", " << d22 << "]\n";
+        // std::cout << "  [" << d31 << ", " << d32 << "]\n\n";
+
+        // std::cout << "t0 = " << t0 << ", tend = " << tend << "\n";
+        // std::cout << "===========================================\n\n";
         return new PointSetProblem(N, tf, delta_v_max, delta_v_min, delta_s_max, delta_s_min, 
-            delta_m_max, delta_m_min, delta_h_max, delta_h_min, 
+            delta_m_max, delta_m_min, delta_h_max, delta_h_min, delta_n_max, delta_n_min,
             zmax, zmin, wmax, wmin, thetamax, thetamin, qmax, qmin, 
-            ymax, ymin, psimax, psimin, vmax, vmin, rmax, rmin, 
-            z0, w0, theta0, q0, y0, psi0, v0, r0,
-            delta_v0, delta_s0, delta_m0, delta_h0, zf, thetaf, yf, psif,
-            a11, a12, a13, a14, a15, a16, a17, a18, 
-            a21, a22, a23, a24, a25, a26, a27, a28,
-            a31, a32, a33, a34, a35, a36, a37, a38,
-            a41, a42, a43, a44, a45, a46, a47, a48,
-            a51, a52, a53, a54, a55, a56, a57, a58,
-            a61, a62, a63, a64, a65, a66, a67, a68,
-            a71, a72, a73, a74, a75, a76, a77, a78,
-            a81, a82, a83, a84, a85, a86, a87, a88, 
-            b11, b12, b13, b14,
-            b21, b22, b23, b24,
-            b31, b32, b33, b34,
-            b41, b42, b43, b44,
-            b51, b52, b53, b54,
-            b61, b62, b63, b64,
-            b71, b72, b73, b74,
-            b81, b82, b83, b84,
+            vmax, vmin, psimax, psimin, rmax, rmin,
+            xmax, xmin, ymax, ymin, 
+            z0, w0, theta0, q0, v0, psi0, r0,
+            x0, y0, 
+            delta_v0, delta_s0, delta_m0, delta_h0, delta_n0,
+            zf, thetaf, xf, yf, psif,
+            a11, a12, a13, a14, 
+            a21, a22, a23, a24, 
+            a31, a32, a33, a34, 
+            a41, a42, a43, a44, 
+            b11, b12, b13, 
+            b21, b22, b23, 
+            b31, b32, b33, 
+            b41, b42, b43, 
+            c11, c12, c13, 
+            c21, c22, c23, 
+            c31, c32, c33, 
+            d11, d12,
+            d21, d22, 
+            d31, d32,            
             t0, tend);
     }
 
@@ -702,9 +932,11 @@ extern "C" {
         app->Options()->SetStringValue("jacobian_approximation", "finite-difference-values");
         app->Options()->SetStringValue("hessian_approximation", "limited-memory");
         app->Options()->SetIntegerValue("max_iter", 5000);
-        app->Options()->SetNumericValue("tol", 1e-4);
+        app->Options()->SetNumericValue("tol",             1e-3);   // OptimalityTolerance = 1e-3
+        app->Options()->SetNumericValue("constr_viol_tol", 1e-3);
+        app->Options()->SetNumericValue("acceptable_tol",        1e-3);
         //app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
-        app->Options()->SetIntegerValue("print_level", 0); 
+        //app->Options()->SetIntegerValue("print_level", 0); 
         //app->Options()->SetStringValue("nlp_scaling_method", "gradient-based");
         //app->Options()->SetIntegerValue("max_line_search_step_retries", 50);
         //app->Options()->SetNumericValue("alpha_for_y", 0.6);
@@ -723,7 +955,6 @@ extern "C" {
         //app->Options()->SetNumericValue("beta_for_y",  0.4);
 
         //---- (optionally) loosen “acceptable” termination ----
-        app->Options()->SetNumericValue("acceptable_tol",        1e-4);
         //app->Options()->SetNumericValue("acceptable_obj_change_tol", 1e-2);
         //app->Options()->SetIntegerValue("acceptable_iter",      5);
 
@@ -766,4 +997,4 @@ extern "C" {
     }
 }
 
-// g++ -shared -fPIC -o libbebot_mpc_auv_v1_threed.so ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_threed/libbebot_mpc_auv_v1.cpp ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_threed/state_space_matrices.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bebot.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinpoly.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteindifferentialmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinmatrix_a2b.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/degelevmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/nchoosek_mod.cpp -I~/dev/optimization/BeBOT_cpp_v2/include -I./Ipopt/src/ -L./Ipopt/src/.libs -lipopt -L/opt/intel/oneapi/mkl/latest/lib/intel64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -ldl -lm -lpthread -lstdc++
+// g++ -shared -fPIC -o libbebot_mpc_auv_v1_threed_nonlin.so ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_threed/libbebot_mpc_auv_v_nonlin.cpp ~/dev/optimization/BeBOT_cpp_v2/examples/bebot/ma_57/example_mpc_auv_threed/state_space_matrices.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bebot.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinpoly.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteindifferentialmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/bernsteinmatrix_a2b.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/degelevmatrix.cpp ~/dev/optimization/BeBOT_cpp_v2/bebot/nchoosek_mod.cpp -I~/dev/optimization/BeBOT_cpp_v2/include -I./Ipopt/src/ -L./Ipopt/src/.libs -lipopt -L/opt/intel/oneapi/mkl/latest/lib/intel64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group -ldl -lm -lpthread -lstdc++
