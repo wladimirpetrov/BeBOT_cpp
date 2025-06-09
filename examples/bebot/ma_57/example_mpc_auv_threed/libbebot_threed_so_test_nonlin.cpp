@@ -16,12 +16,12 @@ extern "C" {
         double wmax, double wmin,
         double thetamax, double thetamin,
         double qmax, double qmin,
-        double vmax, double vmin,
+        double umax, double umin,
         double psimax, double psimin,
         double rmax, double rmin,
         double xmax, double xmin, double ymax, double ymin,
         double z0, double w0, double theta0, double q0,
-        double v0, double psi0, double r0,
+        double u0, double psi0, double r0,
         double x0, double y0, 
         double delta_v0, double delta_s0, double delta_m0, double delta_h0, double delta_n0,
         double zf, double thetaf, double xf, double yf, double psif,
@@ -70,20 +70,20 @@ int main() {
     double thetamax=0.5, thetamin=-0.5;
     double qmax=   5.0, qmin=   -5.0;
 
-    double vmax=   5.0, vmin=   -5.0;
+    double umax=   -5.0, umin=   -5.1;
     double psimax=3.14, psimin=-3.14;
-    double rmax=   5.0, rmin=   -5.0;
+    double rmax=   1.0, rmin=   -1.0;
 
     double xmax= 0.0, xmin=-5000.0;
     double ymax= 100.0, ymin=-100.0;
 
-    double z0 = -20.0, w0 = 0.00, theta0 =  0.0,   q0 = 0.0;
+    double z0 = -20.02, w0 = 0.00, theta0 =  0.0,   q0 = 0.0;
     
-    double v0 =  0.0, psi0 =  0.0,  r0 = 0.0;
+    double u0 =  -5.0, psi0 =  0.0,  r0 = 0.0;
     double x0 =   0.0, y0 =   0.0;
     
     double dv0=   0.0, ds0 =  0.0,  dm0 =  0.0,  dh0 = 0.0, dn0 = -1.25;
-    double zf = -25.0, thetaf = 0.0, xf = -200.0, yf = 2.0,   psif = 0.0;
+    double zf = -25.0, thetaf = 0.0, xf = -500.0, yf = 40.0,   psif = 0.0;
 
     // A‐matrix (row‐major):
     double A[4][4] = {
@@ -103,17 +103,18 @@ int main() {
 
     // C‐matrix (row‐major):
     double C[3][3] = {
-        {-0.0229753866801664,	-4.75642697051109e-15,	6.37645253694775},
-        {-1.68457845476281e-15,	-7.30423863335897e-16,	1.00000000000003},
-        {-0.00338810792080781,	1.00161193136768e-16,	-0.158037916785119}
+        {-0.00940468274749529,	1.90475123646174e-15,	6.15646652556745e-05},
+        {1.91915088359914e-15,	-7.30423863335897e-16,	1.00000000000003},
+        {-3.32911359041052e-07,	1.00161193136768e-16,	-0.158037916785119}
     };
 
     // D‐matrix (row‐major):
     double D[3][2] = {
-        {0.00200500289959419,	-6.05043558623504e-18},
+        {6.60883567194786e-07,	0.0386000677170305},
         {2.18137750750520e-19,	1.87097290348107e-18},
         {0.000295671463475263,	-3.19320363176623e-19}
     };
+
 
     // flatten and pass everything
     PointSetProblem* prob = create_point_set_problem(
@@ -127,13 +128,13 @@ int main() {
         wmax, wmin,
         thetamax, thetamin,
         qmax, qmin,
-        vmax, vmin,
+        umax, umin,
         psimax, psimin,
         rmax, rmin,
         xmax, xmin,
         ymax, ymin,
         z0, w0, theta0, q0,
-        v0, psi0, r0,
+        u0, psi0, r0,
         x0, y0, 
         dv0, ds0, dm0, dh0, dn0,
         zf, thetaf, xf, yf, psif,

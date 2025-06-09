@@ -25,8 +25,8 @@ cp_times_y, cp_values_y   = read_data('y_controlpoints.csv')
 times_psi, values_psi     = read_data('psi.csv')
 cp_times_psi, cp_values_psi = read_data('psi_controlpoints.csv')
 
-times_v, values_v         = read_data('v.csv')
-cp_times_v, cp_values_v   = read_data('v_controlpoints.csv')
+times_v, values_v         = read_data('u.csv')
+cp_times_v, cp_values_v   = read_data('u_controlpoints.csv')
 
 times_r, values_r         = read_data('r.csv')
 cp_times_r, cp_values_r   = read_data('r_controlpoints.csv')
@@ -76,11 +76,11 @@ plt.tight_layout()
 # —— Plot 2: y, psi, v, r and their control points —— 
 plt.figure(figsize=(10, 6))
 plt.plot(times_psi, values_psi,     marker='.', linestyle=':', linewidth=line_width, label='psi')
-plt.plot(times_v, values_v,         marker='.', linestyle=':', linewidth=line_width, label='v')
+plt.plot(times_v, values_v,         marker='.', linestyle=':', linewidth=line_width, label='u')
 plt.plot(times_r, values_r,         marker='.', linestyle=':', linewidth=line_width, label='r')
 
 
-plt.scatter(cp_times_v,   cp_values_v,   s=70, label='v Control Points')
+plt.scatter(cp_times_v,   cp_values_v,   s=70, label='u Control Points')
 plt.scatter(cp_times_psi, cp_values_psi, s=70, label='psi Control Points')
 plt.scatter(cp_times_r,   cp_values_r,   s=70, label='r Control Points')
 
