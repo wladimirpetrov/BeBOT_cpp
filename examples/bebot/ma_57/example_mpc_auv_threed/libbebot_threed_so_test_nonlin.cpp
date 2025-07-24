@@ -63,27 +63,27 @@ int main() {
     double delta_s_max =  30.0, delta_s_min = -30.0;
     double delta_m_max =4000.0, delta_m_min=-4000.0;
     double delta_h_max =  30.0, delta_h_min = -30.0;
-    double delta_n_max =  -1.2, delta_n_min = -1.25;
+    double delta_n_max =  -1.1, delta_n_min = -1.3;
 
     double zmax=   0.0, zmin= -100.0;
     double wmax=   5.0, wmin=   -5.0;
     double thetamax=0.5, thetamin=-0.5;
     double qmax=   5.0, qmin=   -5.0;
 
-    double umax=   -5.0, umin=   -5.1;
+    double umax=   -5.1, umin=   -5.5;
     double psimax=3.14, psimin=-3.14;
     double rmax=   1.0, rmin=   -1.0;
 
-    double xmax= 0.0, xmin=-5000.0;
+    double xmax= 5000, xmin=-5000.0;
     double ymax= 100.0, ymin=-100.0;
 
-    double z0 = -20.02, w0 = 0.00, theta0 =  0.0,   q0 = 0.0;
+    double z0 = -25.00, w0 = 0.00, theta0 =  0.0,   q0 = 0.0;
     
-    double u0 =  -5.0, psi0 =  0.0,  r0 = 0.0;
+    double u0 =  5.115, psi0 =  0.0,  r0 = 0.0;
     double x0 =   0.0, y0 =   0.0;
     
     double dv0=   0.0, ds0 =  0.0,  dm0 =  0.0,  dh0 = 0.0, dn0 = -1.25;
-    double zf = -25.0, thetaf = 0.0, xf = -500.0, yf = 40.0,   psif = 0.0;
+    double zf = -20.0, thetaf = 0.0, xf = -1000.0, yf = 00.0,   psif = 0.0;
 
     // A‐matrix (row‐major):
     double A[4][4] = {

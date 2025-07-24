@@ -99,7 +99,7 @@ public:
 
     virtual bool get_nlp_info(Index& n, Index& m, Index& nnz_jac_g, Index& nnz_h_lag, IndexStyleEnum& index_style) {
         n = 14 * (N_ + 1) + 1; 
-        m = 9 * (N_ + 1);
+        m = 9 * (N_ + 1);// + N_;
         nnz_jac_g = n * m;  
         nnz_h_lag = 0; 
         index_style = TNLP::C_STYLE;
@@ -150,7 +150,7 @@ public:
             x_lower[i] = umin_;
             x_upper[i] = umax_;
         }
-        x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = u0_;
+        x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = -u0_;
 
         // psi
         for (int i = 5 * (N_ + 1) + 1; i < 6 * (N_ + 1); ++i) {
@@ -212,7 +212,7 @@ public:
         }
         //x_lower[11 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_h0_;
 
-        x_lower[n - 1] = 0.0;
+        x_lower[n - 1] = 0;
         x_upper[n - 1] = std::numeric_limits<double>::infinity();
         std::copy(x_lower.begin(), x_lower.end(), x_l);
         std::copy(x_upper.begin(), x_upper.end(), x_u);
@@ -220,37 +220,11 @@ public:
         std::fill(g_l, g_l + m, 0);
         std::fill(g_u, g_u + m, 0);
 
-        {
-        // … your existing code to fill x_lower, x_upper, g_l, g_u …
-
-        // Copy into the output arrays:
-        std::copy(x_lower.begin(),  x_lower.end(),  x_l);
-        std::copy(x_upper.begin(),  x_upper.end(),  x_u);
-        std::fill(g_l, g_l + m, 0);
-        std::fill(g_u, g_u + m, 0);
-
-        // // Now print “x lower” and “x upper”:
-        // std::cout << "===== x lower bounds =====\n";
-        // for (Index i = 0; i < n; ++i) {
-        //     std::cout << "  x_l[" << i << "] = " << x_l[i] << "\n";
-        // }
-        // std::cout << "\n===== x upper bounds =====\n";
-        // for (Index i = 0; i < n; ++i) {
-        //     std::cout << "  x_u[" << i << "] = " << x_u[i] << "\n";
+        // for (int i = 0; i < N_; ++i) {
+        //     g_l[9 * (N_ + 1) + i] = -std::numeric_limits<double>::infinity();
+        //     g_u[9 * (N_ + 1) + i] = 0.0;
         // }
 
-        // // Print “g lower” and “g upper” (all zeros in your case):
-        // std::cout << "\n===== g lower bounds =====\n";
-        // for (Index i = 0; i < m; ++i) {
-        //     std::cout << "  g_l[" << i << "] = " << g_l[i] << "\n";
-        // }
-        // std::cout << "\n===== g upper bounds =====\n";
-        // for (Index i = 0; i < m; ++i) {
-        //     std::cout << "  g_u[" << i << "] = " << g_u[i] << "\n";
-        // }
-
-        return true;
-    }
 
         return true;
     }
@@ -269,6 +243,12 @@ public:
         const double wpsi = 20.0;
         const double wx = 20.0;
 
+        const double wdv = 0.001;
+        const double wdm = 0.0001;
+        const double wds = 0.01;
+        const double wdh = 0.01;
+        const double wdn = 0.01;
+
         obj_value = 0.0;
 
         double tf_1 = x[n - 1];
@@ -286,22 +266,22 @@ public:
         std::vector<double> y_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
         std::vector<double> psi_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
 
-        // std::vector<double> dv_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
-        // std::vector<double> dm_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
-        // std::vector<double> ds_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
-        // std::vector<double> dh_vector(x + 12 * (N_ + 1), x + 13 * (N_ + 1));
-        // std::vector<double> dn_vector(x + 13 * (N_ + 1), x + 14 * (N_ + 1));
+        std::vector<double> dv_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
+        std::vector<double> dm_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
+        std::vector<double> ds_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
+        std::vector<double> dh_vector(x + 12 * (N_ + 1), x + 13 * (N_ + 1));
+        std::vector<double> dn_vector(x + 13 * (N_ + 1), x + 14 * (N_ + 1));
 
         std::vector<double> z_diff(N_ + 1);
         std::vector<double> theta_diff(N_ + 1);
         std::vector<double> y_diff(N_ + 1);
         std::vector<double> psi_diff(N_ + 1);
 
-        // std::vector<double> dv_sqr(N_ + 1);
-        // std::vector<double> dm_sqr(N_ + 1);
-        // std::vector<double> ds_sqr(N_ + 1);
-        // std::vector<double> dh_sqr(N_ + 1);
-        // std::vector<double> dn_sqr(N_ + 1);
+        std::vector<double> dv_sqr(N_ + 1);
+        std::vector<double> dm_sqr(N_ + 1);
+        std::vector<double> ds_sqr(N_ + 1);
+        std::vector<double> dh_sqr(N_ + 1);
+        std::vector<double> dn_sqr(N_ + 1);
 
         vdSub(N_ + 1, z_vector.data(), zf_vector.data(), z_diff.data());
         vdSub(N_ + 1, theta_vector.data(), thetaf_vector.data(), theta_diff.data());
@@ -313,9 +293,11 @@ public:
         vdSqr(N_ + 1, psi_diff.data(), psi_diff.data());
         vdSqr(N_ + 1, y_diff.data(), y_diff.data());
 
-        // vdSqr(N_ + 1, dv_sqr.data(), dv_sqr.data());
-        // vdSqr(N_ + 1, dm_sqr.data(), dm_sqr.data());
-        // vdSqr(N_ + 1, ds_sqr.data(), ds_sqr.data());
+        vdSqr(N_ + 1, dv_vector.data(), dv_sqr.data());
+        vdSqr(N_ + 1, dm_vector.data(), dm_sqr.data());
+        vdSqr(N_ + 1, ds_vector.data(), ds_sqr.data());
+        vdSqr(N_ + 1, dh_vector.data(), dh_sqr.data());
+        vdSqr(N_ + 1, dn_vector.data(), dn_sqr.data());
 
         double z_diff_sum = cblas_dasum(N_ + 1, z_diff.data(), 1);
         double theta_diff_sum = cblas_dasum(N_ + 1, theta_diff.data(), 1);
@@ -345,14 +327,15 @@ public:
         
 
 
-        // double dv_sum = cblas_dasum(N_ + 1, dv_sqr.data(), 1);
-        // double dm_sum = cblas_dasum(N_ + 1, dm_sqr.data(), 1);
-        // double ds_sum = cblas_dasum(N_ + 1, ds_sqr.data(), 1);
-        // double dh_sum = cblas_dasum(N_ + 1, dh_sqr.data(), 1);
+        double dv_sum = cblas_dasum(N_ + 1, dv_sqr.data(), 1);
+        double dm_sum = cblas_dasum(N_ + 1, dm_sqr.data(), 1);
+        double ds_sum = cblas_dasum(N_ + 1, ds_sqr.data(), 1);
+        double dh_sum = cblas_dasum(N_ + 1, dh_sqr.data(), 1);
+        double dn_sum = cblas_dasum(N_ + 1, dn_sqr.data(), 1);
 
 
     
-        obj_value = wz * z_diff_sum + wtheta * theta_diff_sum + wpsi  * psi_diff_sum + wy * y_diff_sum + wx * x_diff_squared + tf_1; // 
+        obj_value = wz * z_diff_sum + wtheta * theta_diff_sum + wpsi  * psi_diff_sum + wy * y_diff_sum + wx * x_diff_squared + tf_1 + wdv * dv_sum + wdm * dm_sum + wds * ds_sum + wdh * dh_sum + wdn * dn_sum; // 
 
         // obj_value = wz*z_diff_sum
         //   + wtheta*theta_diff_sum
@@ -542,7 +525,11 @@ public:
             g[7 * (N_ + 1) + i] = g8[i];
             g[8 * (N_ + 1) + i] = g9[i];
         }
-        
+
+        // for (int i = 0; i < N_; ++i) {
+        //     g[9 * (N_ + 1) + i] = x_vector[i + 1] - x_vector[i];
+        // }
+                
 
         return true;
     }
@@ -576,7 +563,13 @@ public:
         const IpoptData* ip_data,
         IpoptCalculatedQuantities* ip_cq
     ) { 
-        std::cout << "Finalizing solution" << std::endl;
+        //std::cout << "Finalizing solution" << std::endl;
+
+        //std::cout << "[DEBUG] finalize_solution called. Status = " << status << std::endl;
+        //std::cout << "First 10 x: ";
+        //for (int i = 0; i < std::min(10, int(n)); ++i) std::cout << x[i] << " ";
+        //std::cout << std::endl;
+
 
         // Ensure solution_x is 7 * (N + 1)
         solution_x_.resize(14 * (N_ + 1) + 1);
@@ -835,54 +828,55 @@ extern "C" {
         double d21, double d22, 
         double d31, double d32,
         double t0, double tend) {
+        
+        std::cout << std::fixed << std::setprecision(5);
+        //Print out every incoming argument:
+        std::cout << "==== create_point_set_problem called ====\n";
+        std::cout << "N = " << N << "\n";
+        std::cout << "tf = " << tf << "\n";
 
-         // Print out every incoming argument:
-        // std::cout << "==== create_point_set_problem called ====\n";
-        // std::cout << "N = " << N << "\n";
-        // std::cout << "tf = " << tf << "\n";
+        std::cout << "delta_v_max = " << delta_v_max
+                  << ", delta_v_min = " << delta_v_min << "\n";
+        std::cout << "delta_s_max = " << delta_s_max
+                  << ", delta_s_min = " << delta_s_min << "\n";
+        std::cout << "delta_m_max = " << delta_m_max
+                  << ", delta_m_min = " << delta_m_min << "\n";
+        std::cout << "delta_h_max = " << delta_h_max
+                  << ", delta_h_min = " << delta_h_min << "\n";
+        std::cout << "delta_n_max = " << delta_n_max
+                  << ", delta_n_min = " << delta_n_min << "\n\n";
 
-        // std::cout << "delta_v_max = " << delta_v_max
-        //           << ", delta_v_min = " << delta_v_min << "\n";
-        // std::cout << "delta_s_max = " << delta_s_max
-        //           << ", delta_s_min = " << delta_s_min << "\n";
-        // std::cout << "delta_m_max = " << delta_m_max
-        //           << ", delta_m_min = " << delta_m_min << "\n";
-        // std::cout << "delta_h_max = " << delta_h_max
-        //           << ", delta_h_min = " << delta_h_min << "\n";
-        // std::cout << "delta_n_max = " << delta_n_max
-        //           << ", delta_n_min = " << delta_n_min << "\n\n";
+        std::cout << "zmax = " << zmax << ", zmin = " << zmin << "\n";
+        std::cout << "wmax = " << wmax << ", wmin = " << wmin << "\n";
+        std::cout << "thetamax = " << thetamax << ", thetamin = " << thetamin << "\n";
+        std::cout << "qmax = " << qmax << ", qmin = " << qmin << "\n\n";
 
-        // std::cout << "zmax = " << zmax << ", zmin = " << zmin << "\n";
-        // std::cout << "wmax = " << wmax << ", wmin = " << wmin << "\n";
-        // std::cout << "thetamax = " << thetamax << ", thetamin = " << thetamin << "\n";
-        // std::cout << "qmax = " << qmax << ", qmin = " << qmin << "\n\n";
+        std::cout << "umax = " << umax << ", umin = " << umin << "\n";
+        std::cout << "psimax = " << psimax << ", psimin = " << psimin << "\n";
+        std::cout << "rmax = " << rmax << ", rmin = " << rmin << "\n\n";
 
-        // std::cout << "vmax = " << vmax << ", vmin = " << vmin << "\n";
-        // std::cout << "psimax = " << psimax << ", psimin = " << psimin << "\n";
-        // std::cout << "rmax = " << rmax << ", rmin = " << rmin << "\n\n";
+        std::cout << "xmax = " << xmax << ", xmin = " << xmin << "\n";
+        std::cout << "ymax = " << ymax << ", ymin = " << ymin << "\n\n";
 
-        // std::cout << "xmax = " << xmax << ", xmin = " << xmin << "\n";
-        // std::cout << "ymax = " << ymax << ", ymin = " << ymin << "\n\n";
+        std::cout << "Initial states:\n";
+        std::cout << "  z0 = " << z0 << ", w0 = " << w0
+                  << ", theta0 = " << theta0 << ", q0 = " << q0 << "\n";
+        std::cout << "  u0 = " << u0 << ", psi0 = " << psi0 << ", r0 = " << r0 << "\n";
+        std::cout << "  x0 = " << x0 << ", y0 = " << y0 << "\n\n";
 
-        // std::cout << "Initial states:\n";
-        // std::cout << "  z0 = " << z0 << ", w0 = " << w0
-        //           << ", theta0 = " << theta0 << ", q0 = " << q0 << "\n";
-        // std::cout << "  v0 = " << v0 << ", psi0 = " << psi0 << ", r0 = " << r0 << "\n";
-        // std::cout << "  x0 = " << x0 << ", y0 = " << y0 << "\n\n";
+        std::cout << "Initial controls:\n";
+        std::cout << "  delta_v0 = " << delta_v0
+                  << ", delta_s0 = " << delta_s0
+                  << ", delta_m0 = " << delta_m0
+                  << ", delta_h0 = " << delta_h0
+                  << ", delta_n0 = " << delta_n0 << "\n\n";
 
-        // std::cout << "Initial controls:\n";
-        // std::cout << "  delta_v0 = " << delta_v0
-        //           << ", delta_s0 = " << delta_s0
-        //           << ", delta_m0 = " << delta_m0
-        //           << ", delta_h0 = " << delta_h0
-        //           << ", delta_n0 = " << delta_n0 << "\n\n";
-
-        // std::cout << "Final targets:\n";
-        // std::cout << "  zf = " << zf
-        //           << ", thetaf = " << thetaf
-        //           << ", xf = " << xf
-        //           << ", yf = " << yf
-        //           << ", psif = " << psif << "\n\n";
+        std::cout << "Final targets:\n";
+        std::cout << "  zf = " << zf
+                  << ", thetaf = " << thetaf
+                  << ", xf = " << xf
+                  << ", yf = " << yf
+                  << ", psif = " << psif << "\n\n";
 
         // std::cout << "A‐matrix (4×4):\n";
         // std::cout << "  [" << a11 << ", " << a12 << ", " << a13 << ", " << a14 << "]\n";
@@ -906,8 +900,8 @@ extern "C" {
         // std::cout << "  [" << d21 << ", " << d22 << "]\n";
         // std::cout << "  [" << d31 << ", " << d32 << "]\n\n";
 
-        // std::cout << "t0 = " << t0 << ", tend = " << tend << "\n";
-        // std::cout << "===========================================\n\n";
+        std::cout << "t0 = " << t0 << ", tend = " << tend << "\n";
+        std::cout << "===========================================\n\n";
         return new PointSetProblem(N, tf, delta_v_max, delta_v_min, delta_s_max, delta_s_min, 
             delta_m_max, delta_m_min, delta_h_max, delta_h_min, delta_n_max, delta_n_min,
             zmax, zmin, wmax, wmin, thetamax, thetamin, qmax, qmin, 
@@ -942,8 +936,8 @@ extern "C" {
         app->Options()->SetStringValue("jacobian_approximation", "finite-difference-values");
         app->Options()->SetStringValue("hessian_approximation", "limited-memory");
         app->Options()->SetIntegerValue("max_iter", 5000);
-        app->Options()->SetNumericValue("tol",             1e-3);   // OptimalityTolerance = 1e-3
-        app->Options()->SetNumericValue("constr_viol_tol", 1e-3);
+        app->Options()->SetNumericValue("tol",             1e-6);   // OptimalityTolerance = 1e-3
+        app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
         app->Options()->SetNumericValue("acceptable_tol",        1e-6);
         // somewhere before app->Initialize():
         //app->Options()->SetIntegerValue("max_line_search_step_retries", 200);
@@ -952,7 +946,7 @@ extern "C" {
 
 
         //app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
-        //app->Options()->SetIntegerValue("print_level", 0); 
+        app->Options()->SetIntegerValue("print_level", 0); 
         //app->Options()->SetStringValue("nlp_scaling_method", "gradient-based");
         //app->Options()->SetIntegerValue("max_line_search_step_retries", 50);
         //app->Options()->SetNumericValue("alpha_for_y", 0.6);
@@ -1000,8 +994,19 @@ extern "C" {
 
     void get_solution(PointSetProblem* problem, double* solution, int n) {
         const std::vector<double>& sol = problem->get_solution_x();
+
+        std::cout << "[DEBUG] get_solution called. Vector size: " << sol.size() << std::endl;
+        // Print all values in one line, comma-separated
+        //std::cout << "[DEBUG] Full solution vector: [";
+        //for (size_t i = 0; i < sol.size(); ++i) {
+        //    std::cout << sol[i];
+        //    if (i + 1 < sol.size()) std::cout << ", ";
+        //}
+        //std::cout << "]" << std::endl;
+
         std::copy(sol.begin(), sol.end(), solution);
     }
+
 
     double get_final_objective_value(PointSetProblem* problem) {
         return problem->get_final_obj_value();
