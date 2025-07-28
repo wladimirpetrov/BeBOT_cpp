@@ -74,16 +74,16 @@ int main() {
     double psimax=3.14, psimin=-3.14;
     double rmax=   5.0, rmin=   -5.0;
 
-    double xmax= 5000, xmin=-5000.0;
-    double ymax= 100.0, ymin=-100.0;
+    double xmax= 15000, xmin=-15000.0;
+    double ymax= 15000.0, ymin=-15000.0;
 
-    double z0 = -18.9770, w0 = -0.3273, theta0 =  0.0554,   q0 = -9.6127e-05;
+    double z0 = -20.0014, w0 = -0.2838, theta0 =  0.0560,   q0 = -8.4229e-07;
     
-    double u0 =  5.0663, psi0 =  0.0024,  r0 = 3.8565e-04;
-    double x0 =   -346.4413, y0 =   0.9229;
+    double u0 =  5.0822, psi0 =  0.1776,  r0 = -1.0730e-04;
+    double x0 =   -5.6348e+03, y0 =   -645.7781;
     
     double dv0=   0.0, ds0 =  0.0,  dm0 =  0.0,  dh0 = 0.0, dn0 = -1.25;
-    double zf = -23.4469, thetaf = 0.0, xf = 0.0, yf = 00.0,   psif = 0.0016;
+    double zf = -23.8773, thetaf = 0.0, xf = 0.0, yf = 00.0,   psif = 0.1694;
 
     // A‐matrix (row‐major):
     double A[4][4] = {

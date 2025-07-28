@@ -237,6 +237,18 @@ public:
     }
 
     virtual bool eval_f(Index n, const Number* x, bool new_x, Number& obj_value) {
+        // const double wz = 100;//20.0;
+        // const double wtheta = 1;//20.0;
+        // const double wy = 20.0;
+        // const double wx = 20.0;
+        // const double wpsi = 10;//20.0;
+
+        // const double wdv = 100;//0.001;
+        // const double wdm = 0.01;//0.0001; 0.001
+        // const double wds = 0.3;//0.01; 00.12 0.05
+        // const double wdh = 0.01;//0.01;
+        // const double wdn = 1.0;//0.01;
+
         const double wz = 100;//20.0;
         const double wtheta = 1;//20.0;
         const double wy = 20.0;
@@ -244,9 +256,9 @@ public:
         const double wpsi = 10;//20.0;
 
         const double wdv = 100;//0.001;
-        const double wdm = 0.001;//0.0001;
-        const double wds = 0.12;//0.01;
-        const double wdh = 0.01;//0.01;
+        const double wdm = 1;//0.0001; 0.001
+        const double wds = 0.05;//0.01; 00.12 0.05
+        const double wdh = 1;//0.01;
         const double wdn = 1.0;//0.01;
 
         obj_value = 0.0;
@@ -691,40 +703,40 @@ public:
             }
             return output;
         };
-        writeToCSV(final_time_, flatten(bernstein_z), "z.csv");
-        writeToCSV(bebot_.getNodes(), z_vector, "z_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_w), "w.csv");
-        writeToCSV(bebot_.getNodes(), w_vector, "w_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_theta), "theta.csv");
-        writeToCSV(bebot_.getNodes(), theta_vector, "theta_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_q), "q.csv");
-        writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_z), "z.csv");
+        // writeToCSV(bebot_.getNodes(), z_vector, "z_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_w), "w.csv");
+        // writeToCSV(bebot_.getNodes(), w_vector, "w_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_theta), "theta.csv");
+        // writeToCSV(bebot_.getNodes(), theta_vector, "theta_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_q), "q.csv");
+        // writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints.csv");
 
 
-        writeToCSV(final_time_, flatten(bernstein_u), "u.csv");
-        writeToCSV(bebot_.getNodes(), u_vector, "u_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_psi), "psi.csv");
-        writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_r), "r.csv");
-        writeToCSV(bebot_.getNodes(), r_vector, "r_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_u), "u.csv");
+        // writeToCSV(bebot_.getNodes(), u_vector, "u_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_psi), "psi.csv");
+        // writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_r), "r.csv");
+        // writeToCSV(bebot_.getNodes(), r_vector, "r_controlpoints.csv");
 
 
-        writeToCSV(final_time_, flatten(bernstein_x), "x.csv");
-        writeToCSV(bebot_.getNodes(), x_vector, "x_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_y), "y.csv");
-        writeToCSV(bebot_.getNodes(), y_vector, "y_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_x), "x.csv");
+        // writeToCSV(bebot_.getNodes(), x_vector, "x_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_y), "y.csv");
+        // writeToCSV(bebot_.getNodes(), y_vector, "y_controlpoints.csv");
 
-        writeToCSV(final_time_, flatten(bernstein_delta_v), "delta_v.csv");
-        writeToCSV(bebot_.getNodes(), delta_v_vector, "delta_v_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_delta_m), "delta_m.csv");
-        writeToCSV(bebot_.getNodes(), delta_m_vector, "delta_m_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_delta_s), "delta_s.csv");
-        writeToCSV(bebot_.getNodes(), delta_s_vector, "delta_s_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_delta_h), "delta_h.csv");
-        writeToCSV(bebot_.getNodes(), delta_h_vector, "delta_h_controlpoints.csv");
-        writeToCSV(final_time_, flatten(bernstein_delta_n), "delta_n.csv");
-        writeToCSV(bebot_.getNodes(), delta_n_vector, "delta_n_controlpoints.csv");
-        std::cout << "Solution finalized and written to CSV files" << std::endl;
+        // writeToCSV(final_time_, flatten(bernstein_delta_v), "delta_v.csv");
+        // writeToCSV(bebot_.getNodes(), delta_v_vector, "delta_v_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_delta_m), "delta_m.csv");
+        // writeToCSV(bebot_.getNodes(), delta_m_vector, "delta_m_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_delta_s), "delta_s.csv");
+        // writeToCSV(bebot_.getNodes(), delta_s_vector, "delta_s_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_delta_h), "delta_h.csv");
+        // writeToCSV(bebot_.getNodes(), delta_h_vector, "delta_h_controlpoints.csv");
+        // writeToCSV(final_time_, flatten(bernstein_delta_n), "delta_n.csv");
+        // writeToCSV(bebot_.getNodes(), delta_n_vector, "delta_n_controlpoints.csv");
+        // std::cout << "Solution finalized and written to CSV files" << std::endl;
 
     }
 
@@ -831,54 +843,54 @@ extern "C" {
         double d31, double d32,
         double t0, double tend) {
         
-        std::cout << std::fixed << std::setprecision(5);
-        //Print out every incoming argument:
-        std::cout << "==== create_point_set_problem called ====\n";
-        std::cout << "N = " << N << "\n";
-        std::cout << "tf = " << tf << "\n";
+        // std::cout << std::fixed << std::setprecision(5);
+        // //Print out every incoming argument:
+        // std::cout << "==== create_point_set_problem called ====\n";
+        // std::cout << "N = " << N << "\n";
+        // std::cout << "tf = " << tf << "\n";
 
-        std::cout << "delta_v_max = " << delta_v_max
-                  << ", delta_v_min = " << delta_v_min << "\n";
-        std::cout << "delta_s_max = " << delta_s_max
-                  << ", delta_s_min = " << delta_s_min << "\n";
-        std::cout << "delta_m_max = " << delta_m_max
-                  << ", delta_m_min = " << delta_m_min << "\n";
-        std::cout << "delta_h_max = " << delta_h_max
-                  << ", delta_h_min = " << delta_h_min << "\n";
-        std::cout << "delta_n_max = " << delta_n_max
-                  << ", delta_n_min = " << delta_n_min << "\n\n";
+        // std::cout << "delta_v_max = " << delta_v_max
+        //           << ", delta_v_min = " << delta_v_min << "\n";
+        // std::cout << "delta_s_max = " << delta_s_max
+        //           << ", delta_s_min = " << delta_s_min << "\n";
+        // std::cout << "delta_m_max = " << delta_m_max
+        //           << ", delta_m_min = " << delta_m_min << "\n";
+        // std::cout << "delta_h_max = " << delta_h_max
+        //           << ", delta_h_min = " << delta_h_min << "\n";
+        // std::cout << "delta_n_max = " << delta_n_max
+        //           << ", delta_n_min = " << delta_n_min << "\n\n";
 
-        std::cout << "zmax = " << zmax << ", zmin = " << zmin << "\n";
-        std::cout << "wmax = " << wmax << ", wmin = " << wmin << "\n";
-        std::cout << "thetamax = " << thetamax << ", thetamin = " << thetamin << "\n";
-        std::cout << "qmax = " << qmax << ", qmin = " << qmin << "\n\n";
+        // std::cout << "zmax = " << zmax << ", zmin = " << zmin << "\n";
+        // std::cout << "wmax = " << wmax << ", wmin = " << wmin << "\n";
+        // std::cout << "thetamax = " << thetamax << ", thetamin = " << thetamin << "\n";
+        // std::cout << "qmax = " << qmax << ", qmin = " << qmin << "\n\n";
 
-        std::cout << "umax = " << umax << ", umin = " << umin << "\n";
-        std::cout << "psimax = " << psimax << ", psimin = " << psimin << "\n";
-        std::cout << "rmax = " << rmax << ", rmin = " << rmin << "\n\n";
+        // std::cout << "umax = " << umax << ", umin = " << umin << "\n";
+        // std::cout << "psimax = " << psimax << ", psimin = " << psimin << "\n";
+        // std::cout << "rmax = " << rmax << ", rmin = " << rmin << "\n\n";
 
-        std::cout << "xmax = " << xmax << ", xmin = " << xmin << "\n";
-        std::cout << "ymax = " << ymax << ", ymin = " << ymin << "\n\n";
+        // std::cout << "xmax = " << xmax << ", xmin = " << xmin << "\n";
+        // std::cout << "ymax = " << ymax << ", ymin = " << ymin << "\n\n";
 
-        std::cout << "Initial states:\n";
-        std::cout << "  z0 = " << z0 << ", w0 = " << w0
-                  << ", theta0 = " << theta0 << ", q0 = " << q0 << "\n";
-        std::cout << "  u0 = " << u0 << ", psi0 = " << psi0 << ", r0 = " << r0 << "\n";
-        std::cout << "  x0 = " << x0 << ", y0 = " << y0 << "\n\n";
+        // std::cout << "Initial states:\n";
+        // std::cout << "  z0 = " << z0 << ", w0 = " << w0
+        //           << ", theta0 = " << theta0 << ", q0 = " << q0 << "\n";
+        // std::cout << "  u0 = " << u0 << ", psi0 = " << psi0 << ", r0 = " << r0 << "\n";
+        // std::cout << "  x0 = " << x0 << ", y0 = " << y0 << "\n\n";
 
-        std::cout << "Initial controls:\n";
-        std::cout << "  delta_v0 = " << delta_v0
-                  << ", delta_s0 = " << delta_s0
-                  << ", delta_m0 = " << delta_m0
-                  << ", delta_h0 = " << delta_h0
-                  << ", delta_n0 = " << delta_n0 << "\n\n";
+        // std::cout << "Initial controls:\n";
+        // std::cout << "  delta_v0 = " << delta_v0
+        //           << ", delta_s0 = " << delta_s0
+        //           << ", delta_m0 = " << delta_m0
+        //           << ", delta_h0 = " << delta_h0
+        //           << ", delta_n0 = " << delta_n0 << "\n\n";
 
-        std::cout << "Final targets:\n";
-        std::cout << "  zf = " << zf
-                  << ", thetaf = " << thetaf
-                  << ", xf = " << xf
-                  << ", yf = " << yf
-                  << ", psif = " << psif << "\n\n";
+        // std::cout << "Final targets:\n";
+        // std::cout << "  zf = " << zf
+        //           << ", thetaf = " << thetaf
+        //           << ", xf = " << xf
+        //           << ", yf = " << yf
+        //           << ", psif = " << psif << "\n\n";
 
         // std::cout << "A‐matrix (4×4):\n";
         // std::cout << "  [" << a11 << ", " << a12 << ", " << a13 << ", " << a14 << "]\n";
@@ -902,8 +914,8 @@ extern "C" {
         // std::cout << "  [" << d21 << ", " << d22 << "]\n";
         // std::cout << "  [" << d31 << ", " << d32 << "]\n\n";
 
-        std::cout << "t0 = " << t0 << ", tend = " << tend << "\n";
-        std::cout << "===========================================\n\n";
+        // std::cout << "t0 = " << t0 << ", tend = " << tend << "\n";
+        // std::cout << "===========================================\n\n";
         return new PointSetProblem(N, tf, delta_v_max, delta_v_min, delta_s_max, delta_s_min, 
             delta_m_max, delta_m_min, delta_h_max, delta_h_min, delta_n_max, delta_n_min,
             zmax, zmin, wmax, wmin, thetamax, thetamin, qmax, qmin, 
@@ -938,9 +950,9 @@ extern "C" {
         app->Options()->SetStringValue("jacobian_approximation", "finite-difference-values");
         app->Options()->SetStringValue("hessian_approximation", "limited-memory");
         app->Options()->SetIntegerValue("max_iter", 400);
-        app->Options()->SetNumericValue("tol",             1e-3);   // OptimalityTolerance = 1e-3
+        app->Options()->SetNumericValue("tol",             1e-1);   // OptimalityTolerance = 1e-3    1
         app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
-        app->Options()->SetNumericValue("acceptable_tol",        1e-6);
+        app->Options()->SetNumericValue("acceptable_tol",        1e-6); //1
         // somewhere before app->Initialize():
         //app->Options()->SetIntegerValue("max_line_search_step_retries", 200);
         //app->Options()->SetNumericValue("alpha_for_y", 0.6);
