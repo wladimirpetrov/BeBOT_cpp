@@ -249,17 +249,41 @@ public:
         // const double wdh = 0.01;//0.01;
         // const double wdn = 1.0;//0.01;
 
+        // const double wz = 100;//20.0;
+        // const double wtheta = 1;//20.0;
+        // const double wy = 20.0;
+        // const double wx = 20.0;
+        // const double wpsi = 10;//20.0;
+
+        // const double wdv = 1;//0.001; 100 300 200
+        // const double wdm = 0.1;//0.0001; 0.001 1 0.05 0.01
+        // const double wds = 0.1;//0.01; 00.12 0.05 0.1
+        // const double wdh = 1;//0.01; 20 10
+        // const double wdn = 1.0;//0.01; 1.0
+
+        // const double wz = 100;//20.0;
+        // const double wtheta = 1;//20.0;
+        // const double wy = 20.0;
+        // const double wx = 20.0;
+        // const double wpsi = 10;//20.0;
+
+        // const double wdv = 10000;//0.001;
+        // const double wdm = 0.01;//0.0001; 0.001
+        // const double wds = 0.12;//0.01; 00.12 0.05
+        // const double wdh = 100.0;//0.01;
+        // const double wdn = 1.0;//0.01;
+        // N = 15
         const double wz = 100;//20.0;
         const double wtheta = 1;//20.0;
         const double wy = 20.0;
         const double wx = 20.0;
         const double wpsi = 10;//20.0;
 
-        const double wdv = 1;//0.001; 100 300 200
-        const double wdm = 0.1;//0.0001; 0.001 1 0.05 0.01
-        const double wds = 0.1;//0.01; 00.12 0.05 0.1
-        const double wdh = 1;//0.01; 20 10
-        const double wdn = 1.0;//0.01; 1.0
+        const double wdv = 100;//0.001;
+        const double wdm = 0.1;//0.0001; 0.001
+        const double wds = 0.12;//0.01; 00.12 0.05
+        const double wdh = 10;//0.01;
+        const double wdn = 1.0;//0.01;
 
         obj_value = 0.0;
 
