@@ -11,20 +11,31 @@
 #include "mkl.h"
 #include "state_space_matrices.h"
 
+#include <array>
+#include <string>
+#include <limits>
+#include <algorithm>
+
 using namespace Ipopt;
 
 class PointSetProblem : public Ipopt::TNLP {
 public:
     PointSetProblem(int N, double tf, double delta_v_max, double delta_v_min, 
-        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min, double delta_n_max, double delta_n_min, 
+        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min, 
+        // double delta_n_max, double delta_n_min, 
         double zmax, double zmin, double wmax, double wmin, double thetamax, double thetamin, double qmax, double qmin,
-        double umax, double umin, double psimax, double psimin, double rmax, double rmin,
-        double xmax, double xmin, double ymax, double ymin, 
+        // double umax, double umin, 
+        double psimax, double psimin, double rmax, double rmin,
+        // double xmax, double xmin, double ymax, double ymin, 
         double z0, double w0, double theta0, double q0,
-        double u0, double psi0,  double r0,
-        double x0,  double y0, 
-        double delta_v0, double delta_s0, double delta_m0, double delta_h0, double delta_n0,
-        double zf, double thetaf, double xf, double yf, double psif,
+        // double u0, 
+        double psi0,  double r0,
+        // double x0,  double y0, 
+        double delta_v0, double delta_s0, double delta_m0, double delta_h0, 
+        // double delta_n0,
+        double zf, double thetaf, 
+        // double xf, double yf, 
+        double psif,
         double a11, double a12, double a13, double a14, 
         double a21, double a22, double a23, double a24,
         double a31, double a32, double a33, double a34, 
@@ -33,23 +44,33 @@ public:
         double b21, double b22, double b23, 
         double b31, double b32, double b33, 
         double b41, double b42, double b43, 
-        double c11, double c12, double c13,  
-        double c21, double c22, double c23, 
-        double c31, double c32, double c33,  
-        double d11, double d12, 
-        double d21, double d22, 
-        double d31, double d32, 
-        double t0, double tend)
+        double c11, double c12, 
+        double c21, double c22,  
+        double d11, 
+        double d21, 
+        double t0, double tend,
+        double dv_prev, double ds_prev, double dm_prev, double dh_prev,
+        double dv_dot_max, double dm_dot_max, double ds_dot_max, double dh_dot_max)
         : N_(N), tf_(tf), delta_v_max_(delta_v_max), delta_v_min_(delta_v_min), delta_m_max_(delta_m_max), delta_m_min_(delta_m_min), 
-        delta_s_max_(delta_s_max), delta_s_min_(delta_s_min), delta_h_max_(delta_h_max), delta_h_min_(delta_h_min), delta_n_max_(delta_n_max), delta_n_min_(delta_n_min), 
+        delta_s_max_(delta_s_max), delta_s_min_(delta_s_min), delta_h_max_(delta_h_max), delta_h_min_(delta_h_min), 
+        // delta_n_max_(delta_n_max), delta_n_min_(delta_n_min), 
         zmax_(zmax), zmin_(zmin), wmax_(wmax), wmin_(wmin), thetamax_(thetamax), thetamin_(thetamin), qmax_(qmax), qmin_(qmin),
-        umax_(umax), umin_(umin), psimax_(psimax), psimin_(psimin), rmax_(rmax), rmin_(rmin), 
-        xmax_(xmax), xmin_(xmin), ymax_(ymax), ymin_(ymin), 
+        // umax_(umax), umin_(umin), 
+        psimax_(psimax), psimin_(psimin), rmax_(rmax), rmin_(rmin), 
+        // xmax_(xmax), xmin_(xmin), ymax_(ymax), ymin_(ymin), 
         z0_(z0), w0_(w0), theta0_(theta0), q0_(q0),
-        u0_(u0), psi0_(psi0), r0_(r0),
-        x0_(x0), y0_(y0), 
-        delta_v0_(delta_v0), delta_s0_(delta_s0), delta_m0_(delta_m0), delta_h0_(delta_h0), delta_n0_(delta_n0),
-        zf_(zf), thetaf_(thetaf), xf_(xf), yf_(yf), psif_(psif), bebot_(N, tf_), t0_(t0), tend_(tend) {
+        // u0_(u0), 
+        psi0_(psi0), r0_(r0),
+        // x0_(x0), y0_(y0), 
+        delta_v0_(delta_v0), delta_s0_(delta_s0), delta_m0_(delta_m0), delta_h0_(delta_h0), 
+        // delta_n0_(delta_n0),
+        zf_(zf), thetaf_(thetaf), 
+        // xf_(xf), yf_(yf), 
+        psif_(psif), bebot_(N, tf_),
+        t0_(t0), tend_(tend),
+        dv_prev_(dv_prev), ds_prev_(ds_prev), dm_prev_(dm_prev), dh_prev_(dh_prev),
+        dv_dot_max_(dv_dot_max), dm_dot_max_(dm_dot_max), ds_dot_max_(ds_dot_max), dh_dot_max_(dh_dot_max) {
+
         std::cout << "Creating PointSetProblem instance" << std::endl;
 
         // Construct the A matrix
@@ -69,16 +90,14 @@ public:
         }};
 
         C_ = {{
-            {c11, c12, c13},
-            {c21, c22, c23},
-            {c31, c32, c33}
+            {c11, c12},
+            {c21, c22}
         }};
 
         // Construct the B matrix
         D_ = {{
-            {d11, d12},
-            {d21, d22},
-            {d31, d32}
+            {d11},
+            {d21}
         }};
         
         bebot_.calculate();
@@ -98,8 +117,8 @@ public:
     }
 
     virtual bool get_nlp_info(Index& n, Index& m, Index& nnz_jac_g, Index& nnz_h_lag, IndexStyleEnum& index_style) {
-        n = 14 * (N_ + 1) + 1; 
-        m = 9 * (N_ + 1);// + N_;
+        n = 10 * (N_ + 1); // z, theta, w, q, psi, r, dv, dm, ds, dh 
+        m = 10 * (N_ + 1); // 6*(N+1) dynamics + 4*(N+1) control derivatives
         nnz_jac_g = n * m;  
         nnz_h_lag = 0; 
         index_style = TNLP::C_STYLE;
@@ -111,7 +130,7 @@ public:
         std::vector<double> x_lower(n, -std::numeric_limits<double>::infinity());
         std::vector<double> x_upper(n, std::numeric_limits<double>::infinity());
         // z
-        for (int i = 1; i < N_; ++i) {
+        for (int i = 1; i < N_ + 1; ++i) {
             x_lower[i] = zmin_;
             x_upper[i] = zmax_;
         }
@@ -145,254 +164,315 @@ public:
         }
         x_lower[3 * (N_ + 1)] = x_upper[3 * (N_ + 1)] = q0_;//
 
-        // y
-        for (int i = 4 * (N_ + 1) + 1; i < 5 * (N_ + 1); ++i) {
-            x_lower[i] = umin_;
-            x_upper[i] = umax_;
-        }
-        x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = -u0_;
+        // // 
+        // for (int i = 4 * (N_ + 1) + 1; i < 5 * (N_ + 1); ++i) {
+        //     x_lower[i] = umin_;
+        //     x_upper[i] = umax_;
+        // }
+        // x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = -u0_;
 
         // psi
-        for (int i = 5 * (N_ + 1) + 1; i < 6 * (N_ + 1); ++i) {
+        for (int i = 4 * (N_ + 1) + 1; i < 5 * (N_ + 1); ++i) {
             x_lower[i] = psimin_;
             x_upper[i] = psimax_;
         }
-        x_lower[5 * (N_ + 1)] = x_upper[5 * (N_ + 1)] = psi0_;
+        x_lower[4 * (N_ + 1)] = x_upper[4 * (N_ + 1)] = psi0_;
 
-        // v
-        for (int i = 6 * (N_ + 1) + 1; i < 7 * (N_ + 1); ++i) {
+        // r
+        for (int i = 5 * (N_ + 1) + 1; i < 6 * (N_ + 1); ++i) {
             x_lower[i] = rmin_;
             x_upper[i] = rmax_;
         }
-        x_lower[6 * (N_ + 1)] = x_upper[6 * (N_ + 1)] = r0_;
+        x_lower[5 * (N_ + 1)] = x_upper[5 * (N_ + 1)] = r0_;
 
-        // r
-        for (int i = 7 * (N_ + 1) + 1; i < 8 * (N_ + 1); ++i) {
-            x_lower[i] = xmin_;
-            x_upper[i] = xmax_;
-        }
-        x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = x0_;
+        // x
+        // for (int i = 7 * (N_ + 1) + 1; i < 8 * (N_ + 1); ++i) {
+        //     x_lower[i] = xmin_;
+        //     x_upper[i] = xmax_;
+        // }
+        // x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = x0_;
         //x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = r0_;
 
-        // control input
-        for (int i = 8 * (N_ + 1); i < 9 * (N_ + 1); ++i) { // 8 * (N_ + 1) + 1
-            x_lower[i] = ymin_;
-            x_upper[i] = ymax_;
-        }
-        x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = y0_;
-        //x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = delta_v0_;
+        // y
+        // for (int i = 8 * (N_ + 1); i < 9 * (N_ + 1); ++i) { // 8 * (N_ + 1) + 1
+        //     x_lower[i] = ymin_;
+        //     x_upper[i] = ymax_;
+        // }
+        // x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = y0_;
+        // //x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = delta_v0_;
 
-        for (int i = 9 * (N_ + 1); i < 10 * (N_ + 1); ++i) { // 9 * (N_ + 1) + 1
+
+        // control input
+        for (int i = 6 * (N_ + 1); i < 7 * (N_ + 1); ++i) { // 9 * (N_ + 1) + 1
             x_lower[i] = delta_v_min_;
             x_upper[i] = delta_v_max_;
         }
-        //x_lower[9 * (N_ + 1)] = x_upper[9 * (N_ + 1)] = delta_m0_;
+        x_lower[6 * (N_ + 1)] = x_upper[6 * (N_ + 1)] = dv_prev_;
 
-        for (int i = 10 * (N_ + 1); i < 11 * (N_ + 1); ++i) { // 10 * (N_ + 1) + 1
+        for (int i = 7 * (N_ + 1); i < 8 * (N_ + 1); ++i) { // 10 * (N_ + 1) + 1
             x_lower[i] = delta_m_min_;
             x_upper[i] = delta_m_max_;
         }
-        //x_lower[10 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_s0_;
+        x_lower[7 * (N_ + 1)] = x_upper[7 * (N_ + 1)] = dm_prev_;
 
-        for (int i = 11 * (N_ + 1); i < 12 * (N_ + 1); ++i) { // 11 * (N_ + 1) + 1
+        for (int i = 8 * (N_ + 1); i < 9 * (N_ + 1); ++i) { // 11 * (N_ + 1) + 1
             x_lower[i] = delta_s_min_;
             x_upper[i] = delta_s_max_;
         }
-        //x_lower[11 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_h0_;
+        x_lower[8 * (N_ + 1)] = x_upper[8 * (N_ + 1)] = ds_prev_;
 
-        for (int i = 12 * (N_ + 1); i < 13 * (N_ + 1); ++i) { // 11 * (N_ + 1) + 1
+        for (int i = 9 * (N_ + 1); i < 10 * (N_ + 1); ++i) { // 11 * (N_ + 1) + 1
             x_lower[i] = delta_h_min_;
             x_upper[i] = delta_h_max_;
         }
+        x_lower[9 * (N_ + 1)] = x_upper[9 * (N_ + 1)] = dh_prev_;
+
+        // for (int i = 13 * (N_ + 1); i < 14 * (N_ + 1); ++i) { // 11 * (N_ + 1) + 1
+        //     x_lower[i] = delta_n_min_;
+        //     x_upper[i] = delta_n_max_;
+        // }
         //x_lower[11 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_h0_;
 
-        for (int i = 13 * (N_ + 1); i < 14 * (N_ + 1); ++i) { // 11 * (N_ + 1) + 1
-            x_lower[i] = delta_n_min_;
-            x_upper[i] = delta_n_max_;
-        }
-        //x_lower[11 * (N_ + 1)] = x_upper[10 * (N_ + 1)] = delta_h0_;
-
-        x_lower[n - 1] = tf_;
-        x_upper[n - 1] = tf_;
+        // x_lower[n - 1] = tf_;
+        // x_upper[n - 1] = tf_;
         std::copy(x_lower.begin(), x_lower.end(), x_l);
         std::copy(x_upper.begin(), x_upper.end(), x_u);
 
-        std::fill(g_l, g_l + m, 0);
-        std::fill(g_u, g_u + m, 0);
+        // --------------------
+        // g bounds (constraints)
+        // m must be 10*(N_+1)
+        // --------------------
+
+        // dynamics equalities: 6*(N+1) constraints -> g == 0
+        for (int i = 0; i < 6 * (N_ + 1); ++i) {
+            g_l[i] = 0.0;
+            g_u[i] = 0.0;
+        }
+
+        // dv_dt bounds: [-0.60, 0.60]
+        for (int i = 6 * (N_ + 1); i < 7 * (N_ + 1); ++i) {
+            g_l[i] = -dv_dot_max_;
+            g_u[i] =  dv_dot_max_;
+        }
+
+        // dm_dt bounds: [-8.5, 8.5]
+        for (int i = 7 * (N_ + 1); i < 8 * (N_ + 1); ++i) {
+            g_l[i] = -dm_dot_max_;
+            g_u[i] =  dm_dot_max_;
+        }
+
+        // ds_dt bounds: [-0.60, 0.60]
+        for (int i = 8 * (N_ + 1); i < 9 * (N_ + 1); ++i) {
+            g_l[i] = -ds_dot_max_;
+            g_u[i] =  ds_dot_max_;
+        }
+
+        // dh_dt bounds: [-0.60, 0.60]
+        for (int i = 9 * (N_ + 1); i < 10 * (N_ + 1); ++i) {
+            g_l[i] = -dh_dot_max_;
+            g_u[i] =  dh_dot_max_;
+        }
 
         // for (int i = 0; i < N_; ++i) {
         //     g_l[9 * (N_ + 1) + i] = -std::numeric_limits<double>::infinity();
         //     g_u[9 * (N_ + 1) + i] = 0.0;
         // }
 
+        // for (Index i = 0; i < n; ++i) std::cout << "x_l["<<i<<"]="<<x_l[i]<<", x_u["<<i<<"]="<<x_u[i]<<"\n";
+        // for (Index i = 0; i < m; ++i) std::cout << "g_l["<<i<<"]="<<g_l[i]<<", g_u["<<i<<"]="<<g_u[i]<<"\n";
+
 
         return true;
     }
 
     virtual bool get_starting_point(Index n, bool init_x, Number* x, bool init_z, Number* z_L, Number* z_U, Index m, bool init_lambda, Number* lambda) {
-        for(Index i=0; i<n-1; ++i) 
+        for (Index i = 0; i < n; ++i) {
             x[i] = 1.0;
-            x[n - 1] = tf_;
+        }
+        // for (Index i = 0; i < n; ++i) std::cout << "x0["<<i<<"]="<<x[i]<<"\n";
+
         return true;
     }
 
     virtual bool eval_f(Index n, const Number* x, bool new_x, Number& obj_value) {
-        // const double wz = 100;//20.0;
-        // const double wtheta = 1;//20.0;
-        // const double wy = 20.0;
-        // const double wx = 20.0;
-        // const double wpsi = 10;//20.0;
+       
+        const double wz = 100;
+        const double wtheta = 1;
+        const double wpsi = 10;
 
-        // const double wdv = 100;//0.001;
-        // const double wdm = 0.01;//0.0001; 0.001
-        // const double wds = 0.3;//0.01; 00.12 0.05
-        // const double wdh = 0.01;//0.01;
-        // const double wdn = 1.0;//0.01;
-
-        // const double wz = 100;//20.0;
-        // const double wtheta = 1;//20.0;
-        // const double wy = 20.0;
-        // const double wx = 20.0;
-        // const double wpsi = 10;//20.0;
-
-        // const double wdv = 1;//0.001; 100 300 200
-        // const double wdm = 0.1;//0.0001; 0.001 1 0.05 0.01
-        // const double wds = 0.1;//0.01; 00.12 0.05 0.1
-        // const double wdh = 1;//0.01; 20 10
-        // const double wdn = 1.0;//0.01; 1.0
-
-        // const double wz = 100;//20.0;
-        // const double wtheta = 1;//20.0;
-        // const double wy = 20.0;
-        // const double wx = 20.0;
-        // const double wpsi = 10;//20.0;
-
-        // const double wdv = 10000;//0.001;
-        // const double wdm = 0.01;//0.0001; 0.001
-        // const double wds = 0.12;//0.01; 00.12 0.05
-        // const double wdh = 100.0;//0.01;
-        // const double wdn = 1.0;//0.01;
-        // N = 15
-        const double wz = 100;//20.0;
-        const double wtheta = 1;//20.0;
-        const double wy = 20.0;
-        const double wx = 20.0;
-        const double wpsi = 10;//20.0;
-
-        const double wdv = 100;//0.001;
-        const double wdm = 0.1;//0.0001; 0.001
-        const double wds = 0.12;//0.01; 00.12 0.05
-        const double wdh = 10;//0.01;
-        const double wdn = 1.0;//0.01;
+        const double wdv = 100;
+        const double wdm = 0.01;
+        const double wds = 0.01;
+        const double wdh = 0.001;
 
         obj_value = 0.0;
 
-        double tf_1 = x[n - 1];
-
         std::vector<double> zf_vector(N_ + 1, zf_);
         std::vector<double> thetaf_vector(N_ + 1, thetaf_);
-        //std::vector<double> xf_vector(N_ + 1, xf_);
-        //std::vector<double> yf_vector(N_ + 1, yf_);
         std::vector<double> psif_vector(N_ + 1, psif_);
         
 
         std::vector<double> z_vector(x, x + (N_ + 1));
         std::vector<double> theta_vector(x + 1 * (N_ + 1), x + 2 * (N_ + 1));
-        //std::vector<double> x_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
-        //std::vector<double> y_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
-        std::vector<double> psi_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
+        std::vector<double> psi_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
 
-        std::vector<double> dv_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
-        std::vector<double> dm_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
-        std::vector<double> ds_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
-        std::vector<double> dh_vector(x + 12 * (N_ + 1), x + 13 * (N_ + 1));
-        std::vector<double> dn_vector(x + 13 * (N_ + 1), x + 14 * (N_ + 1));
+        std::vector<double> dv_vector(x + 6 * (N_ + 1), x + 7 * (N_ + 1));
+        std::vector<double> dm_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
+        std::vector<double> ds_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
+        std::vector<double> dh_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
 
+        // --- errors ---
         std::vector<double> z_diff(N_ + 1);
         std::vector<double> theta_diff(N_ + 1);
-        std::vector<double> y_diff(N_ + 1);
         std::vector<double> psi_diff(N_ + 1);
+
+        vdSub(N_ + 1, z_vector.data(),     zf_vector.data(),     z_diff.data());
+        vdSub(N_ + 1, theta_vector.data(), thetaf_vector.data(), theta_diff.data());
+        vdSub(N_ + 1, psi_vector.data(),   psif_vector.data(),   psi_diff.data());
+
+        // for(int i=0;i<N_+1;++i) std::cout<<"z_vector["<<i<<"]="<<z_vector[i]<<" zf_vector["<<i<<"]="<<zf_vector[i]<<" z_diff["<<i<<"]="<<z_diff[i]<<"\n";
+        // for(int i=0;i<N_+1;++i) std::cout<<"theta_vector["<<i<<"]="<<theta_vector[i]<<" thetaf_vector["<<i<<"]="<<thetaf_vector[i]<<" theta_diff["<<i<<"]="<<theta_diff[i]<<"\n";
+        // for(int i=0;i<N_+1;++i) std::cout<<"psi_vector["<<i<<"]="<<psi_vector[i]<<" psif_vector["<<i<<"]="<<psif_vector[i]<<" psi_diff["<<i<<"]="<<psi_diff[i]<<"\n";
+
+
+        // --- squared errors ---
+        std::vector<double> z_diff_sqr(N_ + 1);
+        std::vector<double> theta_diff_sqr(N_ + 1);
+        std::vector<double> psi_diff_sqr(N_ + 1);
+
+        vdSqr(N_ + 1, z_diff.data(),     z_diff_sqr.data());
+        vdSqr(N_ + 1, theta_diff.data(), theta_diff_sqr.data());
+        vdSqr(N_ + 1, psi_diff.data(),   psi_diff_sqr.data());
+
+        // for(int i=0;i<N_+1;++i) std::cout<<"z_diff["<<i<<"]="<<z_diff[i]<<" z_diff_sqr["<<i<<"]="<<z_diff_sqr[i]<<"\n";
+        // for(int i=0;i<N_+1;++i) std::cout<<"theta_diff["<<i<<"]="<<theta_diff[i]<<" theta_diff_sqr["<<i<<"]="<<theta_diff_sqr[i]<<"\n";
+        // for(int i=0;i<N_+1;++i) std::cout<<"psi_diff["<<i<<"]="<<psi_diff[i]<<" psi_diff_sqr["<<i<<"]="<<psi_diff_sqr[i]<<"\n";
+
+
+        // --- r_tau (MATLAB else-branch) ---
+        // tau = linspace(-1, 0.999, N+1)
+        // r_tau = 2 ./ (1 - tau).^2
+        std::vector<double> r_tau(N_ + 1);
+        if (N_ + 1 == 1) {
+            const double tau0 = -1.0;
+            const double denom = (1.0 - tau0);
+            r_tau[0] = 2.0 / (denom * denom);
+        } else {
+            const double tau0 = -1.0;
+            const double tau1 = 0.999;
+            const double step = (tau1 - tau0) / static_cast<double>(N_); // (N+1)-1 = N
+            for (int i = 0; i < (N_ + 1); ++i) {
+                const double tau = tau0 + step * static_cast<double>(i);
+                const double denom = (1.0 - tau);
+                r_tau[i] = 2.0 / (denom * denom);
+            }
+        }
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "r_tau[" << i << "]=" << r_tau[i] << "\n";
+
+        // --- elementwise weighted squared errors: r_tau .* (error.^2) ---
+        std::vector<double> z_weighted(N_ + 1);
+        std::vector<double> theta_weighted(N_ + 1);
+        std::vector<double> psi_weighted(N_ + 1);
+
+        vdMul(N_ + 1, r_tau.data(), z_diff_sqr.data(),     z_weighted.data());
+        vdMul(N_ + 1, r_tau.data(), theta_diff_sqr.data(), theta_weighted.data());
+        vdMul(N_ + 1, r_tau.data(), psi_diff_sqr.data(),   psi_weighted.data());
+
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "r_tau[" << i << "]=" << r_tau[i] << (i+1<N_+1?" ":"\n");
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "z_diff_sqr[" << i << "]=" << z_diff_sqr[i] << (i+1<N_+1?" ":"\n");
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "z_weighted[" << i << "]=" << z_weighted[i] << (i+1<N_+1?" ":"\n");
+
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "theta_diff_sqr[" << i << "]=" << theta_diff_sqr[i] << (i+1<N_+1?" ":"\n");
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "theta_weighted[" << i << "]=" << theta_weighted[i] << (i+1<N_+1?" ":"\n");
+
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "psi_diff_sqr[" << i << "]=" << psi_diff_sqr[i] << (i+1<N_+1?" ":"\n");
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "psi_weighted[" << i << "]=" << psi_weighted[i] << (i+1<N_+1?" ":"\n");
+
+
+        // --- sum() via dot with ones ---
+        std::vector<double> ones(N_ + 1, 1.0);
+
+        const double sum_z_state     = cblas_ddot(N_ + 1, z_weighted.data(),     1, ones.data(), 1);
+        const double sum_theta_state = cblas_ddot(N_ + 1, theta_weighted.data(), 1, ones.data(), 1);
+        const double sum_psi_state   = cblas_ddot(N_ + 1, psi_weighted.data(),   1, ones.data(), 1);
+
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "z_weighted[" << i << "]=" << z_weighted[i] << (i+1<N_+1?" ":"\n");
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "ones[" << i << "]=" << ones[i] << (i+1<N_+1?" ":"\n");
+        // std::cout << "sum_z_state=" << sum_z_state << "\n";
+
+        const double state_term =
+            wz     * sum_z_state +
+            wtheta * sum_theta_state +
+            wpsi   * sum_psi_state;
+
+        // --- control term: sum(u.^2) (UNWEIGHTED, same as MATLAB snippet) ---
 
         std::vector<double> dv_sqr(N_ + 1);
         std::vector<double> dm_sqr(N_ + 1);
         std::vector<double> ds_sqr(N_ + 1);
         std::vector<double> dh_sqr(N_ + 1);
-        std::vector<double> dn_sqr(N_ + 1);
-
-        vdSub(N_ + 1, z_vector.data(), zf_vector.data(), z_diff.data());
-        vdSub(N_ + 1, theta_vector.data(), thetaf_vector.data(), theta_diff.data());
-        //vdSub(N_ + 1, y_vector.data(), yf_vector.data(), y_diff.data());
-        vdSub(N_ + 1, psi_vector.data(), psif_vector.data(), psi_diff.data());
-
-        vdSqr(N_ + 1, z_diff.data(), z_diff.data());
-        vdSqr(N_ + 1, theta_diff.data(), theta_diff.data());
-        vdSqr(N_ + 1, psi_diff.data(), psi_diff.data());
-        vdSqr(N_ + 1, y_diff.data(), y_diff.data());
 
         vdSqr(N_ + 1, dv_vector.data(), dv_sqr.data());
         vdSqr(N_ + 1, dm_vector.data(), dm_sqr.data());
         vdSqr(N_ + 1, ds_vector.data(), ds_sqr.data());
         vdSqr(N_ + 1, dh_vector.data(), dh_sqr.data());
-        vdSqr(N_ + 1, dn_vector.data(), dn_sqr.data());
-
-        double z_diff_sum = cblas_dasum(N_ + 1, z_diff.data(), 1);
-        double theta_diff_sum = cblas_dasum(N_ + 1, theta_diff.data(), 1);
-        double y_diff_sum = cblas_dasum(N_ + 1, y_diff.data(), 1);
-        double psi_diff_sum = cblas_dasum(N_ + 1, psi_diff.data(), 1);
-
-        // Print x_vector:
-        // std::cout << "x_vector = [";
-        // for (int i = 0; i <= N_; ++i) {
-        //     std::cout << x_vector[i];
-        //     if (i < N_) std::cout << ", ";
-        // }
-        // std::cout << "]\n";
-
-        // // Print xf_vector:
-        // std::cout << "xf_vector = [";
-        // for (int i = 0; i <= N_; ++i) {
-        //     std::cout << xf_vector[i];
-        //     if (i < N_) std::cout << ", ";
-        // }
-        // std::cout << "]\n";
-
-        //double x_diff         = x_vector[N_] - xf_vector[N_];
-        // std::cout << "x_vector[N_]   = " << x_vector[N_]   << "\n";
-        // std::cout << "xf_vector[N_]  = " << xf_vector[N_]  << "\n";
-        //double x_diff_squared = x_diff * x_diff;
-        
 
 
-        double dv_sum = cblas_dasum(N_ + 1, dv_sqr.data(), 1);
-        double dm_sum = cblas_dasum(N_ + 1, dm_sqr.data(), 1);
-        double ds_sum = cblas_dasum(N_ + 1, ds_sqr.data(), 1);
-        double dh_sum = cblas_dasum(N_ + 1, dh_sqr.data(), 1);
-        double dn_sum = cblas_dasum(N_ + 1, dn_sqr.data(), 1);
+        const double sum_dv = cblas_ddot(N_ + 1, dv_sqr.data(), 1, ones.data(), 1);
+        const double sum_dm = cblas_ddot(N_ + 1, dm_sqr.data(), 1, ones.data(), 1);
+        const double sum_ds = cblas_ddot(N_ + 1, ds_sqr.data(), 1, ones.data(), 1);
+        const double sum_dh = cblas_ddot(N_ + 1, dh_sqr.data(), 1, ones.data(), 1);
+
+        const double control_term =
+            wdv * sum_dv +
+            wdm * sum_dm +
+            wds * sum_ds +
+            wdh * sum_dh;
+
+        // --- DEBUG dv: dv_vector -> dv_sqr -> ddot with ones -> contribution ---
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "dv_vector[" << i << "]=" << dv_vector[i] << (i+1<N_+1?" ":"\n");
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "dv_sqr["    << i << "]=" << dv_sqr[i]    << (i+1<N_+1?" ":"\n");
+        // for (int i = 0; i < N_ + 1; ++i) std::cout << "ones["      << i << "]=" << ones[i]      << (i+1<N_+1?" ":"\n");
+        // std::cout << "sum_dv=" << sum_dv << "\n";
+        // std::cout << "wdv=" << wdv << "\n";
+        // std::cout << "wdv*sum_dv=" << (wdv * sum_dv) << "\n";
 
 
-    
-        //obj_value = wz * z_diff_sum + wtheta * theta_diff_sum + wpsi  * psi_diff_sum + wy * y_diff_sum + wx * x_diff_squared + tf_1 + wdv * dv_sum + wdm * dm_sum + wds * ds_sum + wdh * dh_sum + wdn * dn_sum; //
-
-        obj_value = wz * z_diff_sum + wtheta * theta_diff_sum + wpsi  * psi_diff_sum + wdv * dv_sum + wdm * dm_sum + wds * ds_sum + wdh * dh_sum + wdn * dn_sum; //  
-
-        // obj_value = wz*z_diff_sum
-        //   + wtheta*theta_diff_sum
-        //   + wpsi*psi_diff_sum
-        //   + wy*y_diff_sum
-        //   + wx*x_diff_squared
-        //   + tf_1*(N_+1);
+        obj_value = state_term + control_term;
 
         return true;
     }
 
     virtual bool eval_g(Index n, const Number* x, bool new_x, Index m, Number* g) {
-        Bebot Bebot(N_, x[n - 1]);
+        
+        // eval_g implements constraints g(x):
+        //   - 6*(N+1) dynamics equalities (BeBOT tau-derivative form)
+        //   - 4*(N+1) control time-derivative bounds (dv_dt, dm_dt, ds_dt, dh_dt)
+        //
+        // MATLAB reference:
+        //   Xd_tau = Xd * Dm
+        //   Xh_tau = Xh * Dm
+        //   res_depth = Xd_tau - (A*Xd + B*Ud) .* r_tauRow
+        //   res_horiz = Xh_tau - (C*Xh + D*Uh) .* r_tauRow
+        //   u_tau = u_row * Dm
+        //   u_dt  = u_tau ./ r_tauRow
+        //
+        // Your IPOPT bounds setup:
+        //   g[0..6*(N+1)-1] == 0
+        //   g[6*(N+1)..10*(N+1)-1] in [-u_dot_max, +u_dot_max]
+        // ============================================================
+
+        // -----------------------------
+        // 0) Get BeBOT differentiation matrix Dm for (N_, tf_)
+        // MATLAB: [~,~,Dm_cache] = BeBOT(N, tf)
+        
+        Bebot Bebot(N_, tf_);
         Bebot.calculate();
         const auto& Dm = Bebot.getDifferentiationMatrix();
         
         //std::cout << "tf (x[n-1]) = " << x[n - 1] << std::endl;
 
-        // // Assume Dm is a flat vector of length (N_+1)*(N_+1).  Print it as an (N_+1)x(N_+1) matrix:
+        // Assume Dm is a flat vector of length (N_+1)*(N_+1).  Print it as an (N_+1)x(N_+1) matrix:
         // std::cout << "Dm = " << std::endl;
         // for (int i = 0; i < N_ + 1; ++i) {
         //     for (int j = 0; j < N_ + 1; ++j) {
@@ -401,167 +481,371 @@ public:
         //     std::cout << std::endl;
         // }
 
+
+        // -----------------------------
+        // 1) Build tau and r_tau_row (same as MATLAB else-branch)
+        // MATLAB:
+        //   tau   = linspace(-1, 0.999, N+1)
+        //   r_tau = (2 ./ (1 - tau).^2).'
+        // -----------------------------
+        std::vector<double> tau_vec(N_ + 1);
+        std::vector<double> r_tau_row(N_ + 1);
+
+        if (N_ + 1 == 1) {
+            tau_vec[0] = -1.0;
+            const double denom = 1.0 - tau_vec[0];
+            r_tau_row[0] = 2.0 / (denom * denom);
+        } else {
+            const double tau0 = -1.0;
+            const double tau1 = 0.999;
+            const double step = (tau1 - tau0) / static_cast<double>(N_); // (N+1)-1 = N
+            for (int i = 0; i < (N_ + 1); ++i) {
+                tau_vec[i] = tau0 + step * static_cast<double>(i);
+                const double denom = 1.0 - tau_vec[i];
+                r_tau_row[i] = 2.0 / (denom * denom);
+            }
+        }
+
+        // -----------------------------
+        // 2) Unpack decision vector x into state/control knot vectors
+        // X = [z, theta, w, q, psi, r, dv, dm, ds, dh] each length (N+1)
+        // -----------------------------
         std::vector<double> z_vector(x, x + (N_ + 1));
         std::vector<double> theta_vector(x + 1 * (N_ + 1), x + 2 * (N_ + 1));
         std::vector<double> w_vector(x + 2 * (N_ + 1), x + 3 * (N_ + 1));
         std::vector<double> q_vector(x + 3 * (N_ + 1), x + 4 * (N_ + 1));
-        std::vector<double> u_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
-        std::vector<double> psi_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
-        std::vector<double> r_vector(x + 6 * (N_ + 1), x + 7 * (N_ + 1));
-        std::vector<double> x_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
-        std::vector<double> y_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
+        std::vector<double> psi_vector(x + 4 * (N_ + 1), x + 5 * (N_ + 1));
+        std::vector<double> r_vector(x + 5 * (N_ + 1), x + 6 * (N_ + 1));
 
-        std::vector<double> delta_v_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
-        std::vector<double> delta_m_vector(x + 10 * (N_ + 1), x + 11 * (N_ + 1));
-        std::vector<double> delta_s_vector(x + 11 * (N_ + 1), x + 12 * (N_ + 1));
-        std::vector<double> delta_h_vector(x + 12 * (N_ + 1), x + 13 * (N_ + 1));
-        std::vector<double> delta_n_vector(x + 13 * (N_ + 1), x + 14 * (N_ + 1));
+        std::vector<double> delta_v_vector(x + 6 * (N_ + 1), x + 7 * (N_ + 1));
+        std::vector<double> delta_m_vector(x + 7 * (N_ + 1), x + 8 * (N_ + 1));
+        std::vector<double> delta_s_vector(x + 8 * (N_ + 1), x + 9 * (N_ + 1));
+        std::vector<double> delta_h_vector(x + 9 * (N_ + 1), x + 10 * (N_ + 1));
 
-        
+        // -----------------------------
+        // 3) Compute tau-derivatives of states via BeBOT: X_tau = X * Dm
+        // Your convention here (using Dm^T in gemv) should match your Dm storage.
+        // dyn1..dyn6 represent z_tau, theta_tau, w_tau, q_tau, psi_tau, r_tau.
+        // -----------------------------
         std::vector<double> dyn1(N_ + 1);
         std::vector<double> dyn2(N_ + 1);
         std::vector<double> dyn3(N_ + 1);
         std::vector<double> dyn4(N_ + 1);
         std::vector<double> dyn5(N_ + 1);
         std::vector<double> dyn6(N_ + 1);
-        std::vector<double> dyn7(N_ + 1);
-        std::vector<double> dyn8(N_ + 1);
-        std::vector<double> dyn9(N_ + 1);
+        //std::cout << "z_vector = ["; for (int i=0;i<N_+1;++i) std::cout << z_vector[i] << (i<N_? ", ":""); std::cout << "]\n";
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, z_vector.data(), 1, 0.0, dyn1.data(), 1); // z_tau
+        //std::cout << "dyn1 = ["; for (int i=0;i<N_+1;++i) std::cout << dyn1[i] << (i<N_? ", ":""); std::cout << "]\n";
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, theta_vector.data(), 1, 0.0, dyn2.data(), 1); // theta_tau
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, w_vector.data(), 1, 0.0, dyn3.data(), 1); // w_tau
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, q_vector.data(), 1, 0.0, dyn4.data(), 1); // q_tau
+        
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, psi_vector.data(), 1, 0.0, dyn5.data(), 1); // psi_tau
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, r_vector.data(), 1, 0.0, dyn6.data(), 1); // r_tau
+        
 
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, z_vector.data(), 1, 0.0, dyn1.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, theta_vector.data(), 1, 0.0, dyn2.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, w_vector.data(), 1, 0.0, dyn3.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, q_vector.data(), 1, 0.0, dyn4.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, u_vector.data(), 1, 0.0, dyn5.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, psi_vector.data(), 1, 0.0, dyn6.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, r_vector.data(), 1, 0.0, dyn7.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, x_vector.data(), 1, 0.0, dyn8.data(), 1);
-        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, y_vector.data(), 1, 0.0, dyn9.data(), 1);
-
+        // -----------------------------
+        // 4) Build depth subsystem matrices Xd (4x(N+1)) and Ud (3x(N+1))
+        // Xd = [z; theta; w; q], Ud = [dv; dm; ds]
+        // -----------------------------
         std::vector<double> X1_matrix_flat(4 * (N_ + 1));
         std::vector<double> U_matrix_flat(3 * (N_ + 1));
 
         for (Index i = 0; i < (N_ + 1); ++i) {
-            X1_matrix_flat[i] = z_vector[i];
-            X1_matrix_flat[(N_ + 1) + i] = theta_vector[i];
-            X1_matrix_flat[2 * (N_ + 1) + i] = w_vector[i];
-            X1_matrix_flat[3 * (N_ + 1) + i] = q_vector[i];
+            X1_matrix_flat[i]                 = z_vector[i];
+            X1_matrix_flat[(N_ + 1) + i]      = theta_vector[i];
+            X1_matrix_flat[2 * (N_ + 1) + i]  = w_vector[i];
+            X1_matrix_flat[3 * (N_ + 1) + i]  = q_vector[i];
         }
 
         for (Index i = 0; i < (N_ + 1); ++i) {
-            U_matrix_flat[i] = delta_v_vector[i];
-            U_matrix_flat[(N_ + 1) + i] = delta_m_vector[i];
-            U_matrix_flat[2 * (N_ + 1) + i] = delta_s_vector[i];
+            U_matrix_flat[i]                 = delta_v_vector[i];
+            U_matrix_flat[(N_ + 1) + i]      = delta_m_vector[i];
+            U_matrix_flat[2 * (N_ + 1) + i]  = delta_s_vector[i];
         }
 
+
+        // -----------------------------
+        // 5) Compute depth RHS: (A*Xd + B*Ud)
+        // MATLAB: Ad_cache*Xd + Bd_cache*Ud  -> 4x(N+1)
+        // We store it as X2_matrix_flat (4 rows, each length (N+1)).
+        // -----------------------------
         std::vector<double> X2_matrix_flat(4 * (N_ + 1), 0.0);
 
+        // X2 = A*Xd
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 4, 1.0, &A_[0][0], 4, X1_matrix_flat.data(), (N_ + 1), 0.0, X2_matrix_flat.data(), (N_ + 1));
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 3, 1.0, &B_[0][0], 3, U_matrix_flat.data(), (N_ + 1), 1.0, X2_matrix_flat.data(), (N_ + 1));
 
-        std::vector<double> X1_matrix_flat_cd(3 * (N_ + 1));
-        std::vector<double> U_matrix_flat_cd(2 * (N_ + 1));
+        // X2 += B*Ud
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 3, 1.0, &B_[0][0], 3,U_matrix_flat.data(), (N_ + 1),1.0, X2_matrix_flat.data(), (N_ + 1));
+
+
+        auto pv = [&](const char* name, const std::vector<double>& v){
+            std::cout << name << " = [";
+            for (int i=0;i<(int)v.size();++i) std::cout << v[i] << (i+1<(int)v.size()? ", ":"");
+            std::cout << "]\n";
+        };
+
+        auto pm = [&](const char* name, const double* M, int R, int C, bool rowMajor=true){
+            std::cout << name << " ("<<R<<"x"<<C<<")\n";
+            for(int r=0;r<R;++r){
+                for(int c=0;c<C;++c){
+                    const int idx = rowMajor ? (r*C + c) : (c*R + r);
+                    std::cout << M[idx] << (c+1<C? "  ":"");
+                }
+                std::cout << "\n";
+            }
+        };
+
+        pm("A_", &A_[0][0], 4, 4, /*rowMajor=*/true);
+        pm("B_", &B_[0][0], 4, 3, /*rowMajor=*/true);
+
+        pm("Xd (X1_matrix_flat)", X1_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
+        pm("Ud (U_matrix_flat)",  U_matrix_flat.data(),  3, (N_+1), /*rowMajor=*/true);
+
+        /* --- after first dgemm (X2 = A*Xd) --- */
+        pm("X2 after A*Xd", X2_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
+
+        /* --- after second dgemm (X2 += B*Ud) --- */
+        pm("X2 after +B*Ud", X2_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
+
+        
+        // ====================
+        // MANUAL GEMM DEBUG (no MKL)
+        // Computes: AX = A_*Xd  (4 x (N+1))
+        //           BU = B_*Ud  (4 x (N+1))
+        // and prints AX, BU, AX+BU. Also compares vs X2_matrix_flat.
+        // ====================
+        {
+            const int R1 = 4;
+            const int K1 = 4;
+            const int R2 = 4;
+            const int K2 = 3;
+            const int C  = static_cast<int>(N_ + 1);
+
+            auto idx = [&](int r, int c, int ncols) -> int { return r * ncols + c; };
+
+            // Allocate
+            std::vector<double> AX(R1 * C, 0.0);
+            std::vector<double> BU(R2 * C, 0.0);
+            std::vector<double> SUM(R1 * C, 0.0);
+
+            // AX = A (4x4) * Xd (4xC)
+            for (int r = 0; r < R1; ++r) {
+                for (int c = 0; c < C; ++c) {
+                    double acc = 0.0;
+                    for (int k = 0; k < K1; ++k) {
+                        const double a = A_[r][k];                              // A(r,k)
+                        const double x = X1_matrix_flat[idx(k, c, C)];          // Xd(k,c)
+                        acc += a * x;
+                    }
+                    AX[idx(r, c, C)] = acc;
+                }
+            }
+
+            // BU = B (4x3) * Ud (3xC)
+            for (int r = 0; r < R2; ++r) {
+                for (int c = 0; c < C; ++c) {
+                    double acc = 0.0;
+                    for (int k = 0; k < K2; ++k) {
+                        const double b = B_[r][k];                              // B(r,k)
+                        const double u = U_matrix_flat[idx(k, c, C)];           // Ud(k,c)
+                        acc += b * u;
+                    }
+                    BU[idx(r, c, C)] = acc;
+                }
+            }
+
+            // SUM = AX + BU
+            for (int i = 0; i < R1 * C; ++i) {
+                SUM[i] = AX[i] + BU[i];
+            }
+
+            // Pretty printer
+            auto printMat = [&](const char* name, const std::vector<double>& M, int R, int C) {
+                std::cout << "\n" << name << " (" << R << "x" << C << ")\n";
+                for (int r = 0; r < R; ++r) {
+                    std::cout << "  ";
+                    for (int c = 0; c < C; ++c) {
+                        std::cout << std::setw(14) << std::setprecision(8) << std::fixed
+                                << M[idx(r, c, C)] << (c + 1 < C ? " " : "");
+                    }
+                    std::cout << "\n";
+                }
+            };
+
+            printMat("AX_manual = A_*Xd", AX, 4, C);
+            printMat("BU_manual = B_*Ud", BU, 4, C);
+            printMat("SUM_manual = AX_manual + BU_manual", SUM, 4, C);
+
+            // Compare with MKL-produced X2_matrix_flat (after your second dgemm it should equal A*Xd + B*Ud)
+            // Print max abs difference and where it happens.
+            double maxAbs = 0.0;
+            int maxIdx = -1;
+            for (int i = 0; i < 4 * C; ++i) {
+                const double diff = std::abs(SUM[i] - X2_matrix_flat[i]);
+                if (diff > maxAbs) {
+                    maxAbs = diff;
+                    maxIdx = i;
+                }
+            }
+
+            std::cout << "\n[DEBUG] max|SUM_manual - X2_matrix_flat| = " << maxAbs;
+            if (maxIdx >= 0) {
+                const int r = maxIdx / C;
+                const int c = maxIdx % C;
+                std::cout << " at (row=" << r << ", col=" << c << ")\n";
+                std::cout << "        SUM_manual=" << SUM[maxIdx]
+                        << "  X2_mkl=" << X2_matrix_flat[maxIdx] << "\n";
+            } else {
+                std::cout << "\n";
+            }
+        }
+
+
+        // -----------------------------
+        // 6) Build horizontal subsystem matrices Xh (2x(N+1)) and Uh (1x(N+1))
+        // Xh = [psi; r], Uh = [dh]
+        // -----------------------------
+        std::vector<double> X1_matrix_flat_cd(2 * (N_ + 1));
+        std::vector<double> U_matrix_flat_cd(1 * (N_ + 1));
 
         for (Index i = 0; i < (N_ + 1); ++i) {
-            X1_matrix_flat_cd[i] = u_vector[i];
-            X1_matrix_flat_cd[(N_ + 1) + i] = psi_vector[i];
-            X1_matrix_flat_cd[2 * (N_ + 1) + i] = r_vector[i];
+            X1_matrix_flat_cd[i]            = psi_vector[i];
+            X1_matrix_flat_cd[(N_ + 1) + i] = r_vector[i];
         }
 
         for (Index i = 0; i < (N_ + 1); ++i) {
             U_matrix_flat_cd[i] = delta_h_vector[i];
-            U_matrix_flat_cd[(N_ + 1) + i] = delta_n_vector[i];
         }
 
-        std::vector<double> X2_matrix_flat_cd(3 * (N_ + 1), 0.0);
 
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, (N_ + 1), 3, 1.0, &C_[0][0], 3, X1_matrix_flat_cd.data(), (N_ + 1), 0.0, X2_matrix_flat_cd.data(), (N_ + 1));
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 3, (N_ + 1), 2, 1.0, &D_[0][0], 2, U_matrix_flat_cd.data(), (N_ + 1), 1.0, X2_matrix_flat_cd.data(), (N_ + 1));
+        // -----------------------------
+        // 7) Compute horizontal RHS: (C*Xh + D*Uh)
+        // MATLAB: Ah_cache*Xh + Bh_cache*Uh -> 2x(N+1)
+        // Here C_ is 2x2, D_ is 2x1, so result is 2x(N+1).
+        // -----------------------------
+        std::vector<double> X2_matrix_flat_cd(2 * (N_ + 1), 0.0);
 
+        // X2_cd = C*Xh
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 2, (N_ + 1), 2, 1.0, &C_[0][0], 2, X1_matrix_flat_cd.data(), (N_ + 1),0.0, X2_matrix_flat_cd.data(), (N_ + 1));
 
+        // X2_cd += D*Uh
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 2, (N_ + 1), 1, 1.0, &D_[0][0], 1, U_matrix_flat_cd.data(), (N_ + 1),1.0, X2_matrix_flat_cd.data(), (N_ + 1));
 
-        std::vector<double> z_x2(N_ + 1);
-        std::vector<double> theta_x2(N_ + 1);
-        std::vector<double> w_x2(N_ + 1);
-        std::vector<double> q_x2(N_ + 1);
-        std::vector<double> u_x2(N_ + 1);
-        std::vector<double> psi_x2(N_ + 1);
-        std::vector<double> r_x2(N_ + 1);
+        // -----------------------------
+        // 8) Unpack RHS rows from X2 matrices into per-state vectors
+        // Depth RHS rows: z_rhs, theta_rhs, w_rhs, q_rhs
+        // Horizontal RHS rows: psi_rhs, r_rhs
+        // -----------------------------
+        std::vector<double> z_rhs(N_ + 1);
+        std::vector<double> theta_rhs(N_ + 1);
+        std::vector<double> w_rhs(N_ + 1);
+        std::vector<double> q_rhs(N_ + 1);
 
-        std::vector<double> x_x2(N_ + 1);
-        std::vector<double> y_x2(N_ + 1);
+        std::vector<double> psi_rhs(N_ + 1);
+        std::vector<double> r_rhs(N_ + 1);
 
         for (Index i = 0; i < (N_ + 1); ++i) {
-            z_x2[i] = X2_matrix_flat[i];
-            theta_x2[i] = X2_matrix_flat[(N_ + 1) + i];
-            w_x2[i] = X2_matrix_flat[2 * (N_ + 1) + i];
-            q_x2[i] = X2_matrix_flat[3 * (N_ + 1) + i];
+            z_rhs[i]     = X2_matrix_flat[i];
+            theta_rhs[i] = X2_matrix_flat[(N_ + 1) + i];
+            w_rhs[i]     = X2_matrix_flat[2 * (N_ + 1) + i];
+            q_rhs[i]     = X2_matrix_flat[3 * (N_ + 1) + i];
         }
 
         for (Index i = 0; i < (N_ + 1); ++i) {
-            u_x2[i] = X2_matrix_flat_cd[i];
-            psi_x2[i] = X2_matrix_flat_cd[(N_ + 1) + i];
-            r_x2[i] = X2_matrix_flat_cd[2 * (N_ + 1) + i];
+            psi_rhs[i] = X2_matrix_flat_cd[i];
+            r_rhs[i]   = X2_matrix_flat_cd[(N_ + 1) + i];
         }
 
-        // // --- 1) Print psi_vector before any multiplication ---
-        // std::cout << "psi_vector (length " << (N_ + 1) << "): [";
-        // for (int i = 0; i < N_ + 1; ++i) {
-        //     std::cout << psi_vector[i];
-        //     if (i < N_) std::cout << ", ";
-        // }
-        // std::cout << "]\n\n";
-        // std::cout << "i |   psi_i    |  cos(psi_i)  |  sin(psi_i)  |   x_x2[i]    |   y_x2[i]\n";
-        // std::cout << "---------------------------------------------------------------------\n";
-        for (Index i = 0; i < N_ + 1; ++i) {
-            double u_i    = delta_n_vector[i] * 4.0;
-            double cospsi_i = std::cos(psi_vector[i]);
-            double sinpsi_i = std::sin(psi_vector[i]);
-            x_x2[i] = u_vector[i] * cospsi_i;
-            y_x2[i] = u_vector[i] * sinpsi_i;
+        // -----------------------------
+        // 9) Apply tau-weighting to RHS: (A*X + B*U) .* r_tau_row
+        // MATLAB broadcast:
+        //   each column k is multiplied by r_tauRow(k)
+        // Here it is elementwise vector multiply per-row.
+        // -----------------------------
+        std::vector<double> z_rhs_scaled(N_ + 1);
+        std::vector<double> theta_rhs_scaled(N_ + 1);
+        std::vector<double> w_rhs_scaled(N_ + 1);
+        std::vector<double> q_rhs_scaled(N_ + 1);
 
-            // // print row‐by‐row
-            // std::cout << std::setw(2) << i << " | "
-            //         << std::setw(9)  << psi_vector[i] << " | "
-            //         << std::setw(11) << cospsi_i       << " | "
-            //         << std::setw(11) << sinpsi_i       << " | "
-            //         << std::setw(11) << x_x2[i]         << " | "
-            //         << std::setw(11) << y_x2[i]         << "\n";
-        }
+        std::vector<double> psi_rhs_scaled(N_ + 1);
+        std::vector<double> r_rhs_scaled(N_ + 1);
 
-        // std::cout << "\n";
-        
+        vdMul(N_ + 1, z_rhs.data(),     r_tau_row.data(), z_rhs_scaled.data());
+        vdMul(N_ + 1, theta_rhs.data(), r_tau_row.data(), theta_rhs_scaled.data());
+        vdMul(N_ + 1, w_rhs.data(),     r_tau_row.data(), w_rhs_scaled.data());
+        vdMul(N_ + 1, q_rhs.data(),     r_tau_row.data(), q_rhs_scaled.data());
 
-        std::vector<double> g1(N_ + 1);
-        std::vector<double> g2(N_ + 1);
-        std::vector<double> g3(N_ + 1);
-        std::vector<double> g4(N_ + 1);
-        std::vector<double> g5(N_ + 1);
-        std::vector<double> g6(N_ + 1);
-        std::vector<double> g7(N_ + 1);
-        std::vector<double> g8(N_ + 1);
-        std::vector<double> g9(N_ + 1);
+        vdMul(N_ + 1, psi_rhs.data(),   r_tau_row.data(), psi_rhs_scaled.data());
+        vdMul(N_ + 1, r_rhs.data(),     r_tau_row.data(), r_rhs_scaled.data());
 
-        vdSub(N_ + 1, dyn1.data(), z_x2.data(), g1.data());
-        vdSub(N_ + 1, dyn2.data(), theta_x2.data(), g2.data());
-        vdSub(N_ + 1, dyn3.data(), w_x2.data(), g3.data());
-        vdSub(N_ + 1, dyn4.data(), q_x2.data(), g4.data());
-        vdSub(N_ + 1, dyn5.data(), u_x2.data(), g5.data());
-        vdSub(N_ + 1, dyn6.data(), psi_x2.data(), g6.data());
-        vdSub(N_ + 1, dyn7.data(), r_x2.data(), g7.data());
-        vdSub(N_ + 1, dyn8.data(), x_x2.data(), g8.data());
-        vdSub(N_ + 1, dyn9.data(), y_x2.data(), g9.data());
+        // -----------------------------
+        // 10) Dynamics equality residuals:
+        //   res = X_tau - RHS_scaled
+        // These must be == 0 in IPOPT bounds.
+        // -----------------------------
+        std::vector<double> res_z(N_ + 1);
+        std::vector<double> res_theta(N_ + 1);
+        std::vector<double> res_w(N_ + 1);
+        std::vector<double> res_q(N_ + 1);
+        std::vector<double> res_psi(N_ + 1);
+        std::vector<double> res_r(N_ + 1);
 
+        vdSub(N_ + 1, dyn1.data(), z_rhs_scaled.data(),     res_z.data());
+        vdSub(N_ + 1, dyn2.data(), theta_rhs_scaled.data(), res_theta.data());
+        vdSub(N_ + 1, dyn3.data(), w_rhs_scaled.data(),     res_w.data());
+        vdSub(N_ + 1, dyn4.data(), q_rhs_scaled.data(),     res_q.data());
+        vdSub(N_ + 1, dyn5.data(), psi_rhs_scaled.data(),   res_psi.data());
+        vdSub(N_ + 1, dyn6.data(), r_rhs_scaled.data(),     res_r.data());
+
+        // -----------------------------
+        // 11) Control derivatives:
+        // MATLAB:
+        //   u_tau = Urow * Dm
+        //   u_dt  = u_tau ./ r_tauRow
+        // We put u_dt directly into dyn7..dyn10 to match your g bounds blocks.
+        // -----------------------------
+        std::vector<double> dyn7(N_ + 1);   // dv_dt
+        std::vector<double> dyn8(N_ + 1);   // dm_dt
+        std::vector<double> dyn9(N_ + 1);   // ds_dt
+        std::vector<double> dyn10(N_ + 1);  // dh_dt
+
+        std::vector<double> dv_tau(N_ + 1);
+        std::vector<double> dm_tau(N_ + 1);
+        std::vector<double> ds_tau(N_ + 1);
+        std::vector<double> dh_tau(N_ + 1);
+
+        // u_tau = Dm^T * u (consistent with your earlier gemv usage)
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, delta_v_vector.data(), 1, 0.0, dv_tau.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, delta_m_vector.data(), 1, 0.0, dm_tau.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, delta_s_vector.data(), 1, 0.0, ds_tau.data(), 1);
+        cblas_dgemv(CblasColMajor, CblasTrans, N_ + 1, N_ + 1, 1.0, Dm.data(), N_ + 1, delta_h_vector.data(), 1, 0.0, dh_tau.data(), 1);
+
+        // u_dt = u_tau ./ r_tau_row
+        vdDiv(N_ + 1, dv_tau.data(), r_tau_row.data(), dyn7.data());
+        vdDiv(N_ + 1, dm_tau.data(), r_tau_row.data(), dyn8.data());
+        vdDiv(N_ + 1, ds_tau.data(), r_tau_row.data(), dyn9.data());
+        vdDiv(N_ + 1, dh_tau.data(), r_tau_row.data(), dyn10.data());
+
+        // -----------------------------
+        // 12) Pack constraints into g in the exact block layout:
+        //   block 0..5 : dynamics equalities (== 0)
+        //   block 6..9 : control derivatives in time (bounded by g_l/g_u)
+        // -----------------------------
         for (Index i = 0; i < (N_ + 1); ++i) {
-            g[i] = g1[i];
-            g[(N_ + 1) + i] = g2[i];
-            g[2 * (N_ + 1) + i] = g3[i];
-            g[3 * (N_ + 1) + i] = g4[i];
-            g[4 * (N_ + 1) + i] = g5[i];
-            g[5 * (N_ + 1) + i] = g6[i];
-            g[6 * (N_ + 1) + i] = g7[i];
-            g[7 * (N_ + 1) + i] = g8[i];
-            g[8 * (N_ + 1) + i] = g9[i];
+            // dynamics equalities
+            g[0 * (N_ + 1) + i] = res_z[i];
+            g[1 * (N_ + 1) + i] = res_theta[i];
+            g[2 * (N_ + 1) + i] = res_w[i];
+            g[3 * (N_ + 1) + i] = res_q[i];
+            g[4 * (N_ + 1) + i] = res_psi[i];
+            g[5 * (N_ + 1) + i] = res_r[i];
+
+            // control derivative constraints (time derivatives)
+            g[6 * (N_ + 1) + i] = dyn7[i];   // dv_dt
+            g[7 * (N_ + 1) + i] = dyn8[i];   // dm_dt
+            g[8 * (N_ + 1) + i] = dyn9[i];   // ds_dt
+            g[9 * (N_ + 1) + i] = dyn10[i];  // dh_dt
         }
 
         // for (int i = 0; i < N_; ++i) {
@@ -609,54 +893,51 @@ public:
         //std::cout << std::endl;
 
 
-        // Ensure solution_x is 7 * (N + 1)
-        solution_x_.resize(14 * (N_ + 1) + 1);
+        // Ensure solution_x is 10 * (N + 1)
+        solution_x_.resize(10 * (N_ + 1));
         
-        // Copy the first 4 * (N + 1) elements from the x array
-        for (Index i = 0; i < 14 * (N_ + 1) + 1; ++i) {
+        // Copy the 10 * (N + 1) elements from the x array
+        for (Index i = 0; i < 10 * (N_ + 1); ++i) {
             solution_x_[i] = x[i];
         }
         
-        
-
-        // Copy the remaining 3 * (N + 1) elements from the x array
-        //for (Index i = 0; i < 2 * (N_ + 1); ++i) {
-        //    solution_x_[4* (N_ + 1) + i] = x[4 * (N_ + 1) + i]; //-
-        //}
-
-        // Copy the remaining 3 * (N + 1) elements from the x array
-        for (Index i = 0; i < 1 * (N_ + 1); ++i) {
-            solution_x_[11* (N_ + 1) + i] = x[11 * (N_ + 1) + i]; //-
-        }
-        
-        double tf_ = solution_x_.back();
 
         final_obj_value_ = obj_value;         
         bebot_ = Bebot(N_, tf_);
         bebot_.calculate();
         
-        final_time_.resize(1000);
-        for (int i = 0; i < 1000; ++i) {
-            final_time_[i] = i * tf_ / 999.0;
+        // final_time_.resize(1000);
+        // for (int i = 0; i < 1000; ++i) {
+        //     final_time_[i] = i * tf_ / 999.0;
+        // }
+
+        // final_time_.resize(1000);
+        // for (int i = 0; i < 1000; ++i) {
+        //     final_time_[i] = static_cast<double>(i) / 999.0;  // 0..1
+        // }
+
+        const int K = 1000;
+
+        // 1) build BOTH time vectors
+        std::vector<double> t_norm(K);
+        std::vector<double> t_real(K);
+
+        for (int i = 0; i < K; ++i) {
+            const double s = static_cast<double>(i) / static_cast<double>(K - 1); // 0..1
+            t_norm[i] = s;          // normalized
+            t_real[i] = s * tf_;    // real seconds
         }
 
         std::vector<double> z_vector(solution_x_.begin(), solution_x_.begin() + (N_ + 1));
         std::vector<double> theta_vector(solution_x_.begin() + (N_ + 1), solution_x_.begin() + 2 * (N_ + 1));
         std::vector<double> w_vector(solution_x_.begin() + 2 * (N_ + 1), solution_x_.begin() + 3 * (N_ + 1));
         std::vector<double> q_vector(solution_x_.begin() + 3 * (N_ + 1), solution_x_.begin() + 4 * (N_ + 1));
-        std::vector<double> u_vector(solution_x_.begin() + 4 * (N_ + 1), solution_x_.begin() + 5 * (N_ + 1));      
-        std::vector<double> psi_vector(solution_x_.begin() + 5 * (N_ + 1), solution_x_.begin() + 6 * (N_ + 1));
-        std::vector<double> r_vector(solution_x_.begin() + 6 * (N_ + 1), solution_x_.begin() + 7 * (N_ + 1));
-
-        std::vector<double> x_vector(solution_x_.begin() + 7 * (N_ + 1), solution_x_.begin() + 8 * (N_ + 1));
-        std::vector<double> y_vector(solution_x_.begin() + 8 * (N_ + 1), solution_x_.begin() + 9 * (N_ + 1));
-
-        std::vector<double> delta_v_vector(solution_x_.begin() + 9 * (N_ + 1), solution_x_.begin() + 10 * (N_ + 1));
-        std::vector<double> delta_m_vector(solution_x_.begin() + 10 * (N_ + 1), solution_x_.begin() + 11 * (N_ + 1));
-        std::vector<double> delta_s_vector(solution_x_.begin() + 11 * (N_ + 1), solution_x_.begin() + 12 * (N_ + 1));
-        std::vector<double> delta_h_vector(solution_x_.begin() + 12 * (N_ + 1), solution_x_.begin() + 13 * (N_ + 1));
-        std::vector<double> delta_n_vector(solution_x_.begin() + 13 * (N_ + 1), solution_x_.end() - 1);
-        
+        std::vector<double> psi_vector(solution_x_.begin() + 4 * (N_ + 1), solution_x_.begin() + 5 * (N_ + 1));
+        std::vector<double> r_vector(solution_x_.begin() + 5 * (N_ + 1), solution_x_.begin() + 6 * (N_ + 1));
+        std::vector<double> delta_v_vector(solution_x_.begin() + 6 * (N_ + 1), solution_x_.begin() + 7 * (N_ + 1));
+        std::vector<double> delta_m_vector(solution_x_.begin() + 7 * (N_ + 1), solution_x_.begin() + 8 * (N_ + 1));
+        std::vector<double> delta_s_vector(solution_x_.begin() + 8 * (N_ + 1), solution_x_.begin() + 9 * (N_ + 1));
+        std::vector<double> delta_h_vector(solution_x_.begin() + 9 * (N_ + 1), solution_x_.begin() + 10 * (N_ + 1));
 
         // Helper to print any std::vector<double>
         auto print_vec = [&](const std::string& name, const std::vector<double>& v){
@@ -673,9 +954,7 @@ public:
         // print_vec("theta_vector",    theta_vector);
         // print_vec("w_vector",        w_vector);
         // print_vec("q_vector",        q_vector);
-        // print_vec("y_vector",        y_vector);
         // print_vec("psi_vector",      psi_vector);
-        // print_vec("v_vector",        v_vector);
         // print_vec("r_vector",        r_vector);
 
         // print_vec("delta_v_vector",  delta_v_vector);
@@ -688,37 +967,53 @@ public:
         std::vector<std::vector<double>> theta_2d(1, theta_vector);
         std::vector<std::vector<double>> w_2d(1, w_vector);
         std::vector<std::vector<double>> q_2d(1, q_vector);
-
-        std::vector<std::vector<double>> u_2d(1, u_vector);
         std::vector<std::vector<double>> psi_2d(1, psi_vector);
         std::vector<std::vector<double>> r_2d(1, r_vector);
-
-        std::vector<std::vector<double>> x_2d(1, x_vector);
-        std::vector<std::vector<double>> y_2d(1, y_vector);
-
         std::vector<std::vector<double>> delta_v_2d(1, delta_v_vector);
         std::vector<std::vector<double>> delta_m_2d(1, delta_m_vector);
         std::vector<std::vector<double>> delta_s_2d(1, delta_s_vector);
         std::vector<std::vector<double>> delta_h_2d(1, delta_h_vector);
-        std::vector<std::vector<double>> delta_n_2d(1, delta_n_vector);
 
-        std::vector<std::vector<double>> bernstein_z = BernsteinPoly(z_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_theta = BernsteinPoly(theta_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_w = BernsteinPoly(w_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_q = BernsteinPoly(q_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_z = BernsteinPoly(z_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_theta = BernsteinPoly(theta_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_w = BernsteinPoly(w_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_q = BernsteinPoly(q_2d, final_time_, 0, tf_);
 
-        std::vector<std::vector<double>> bernstein_u = BernsteinPoly(u_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_psi = BernsteinPoly(psi_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_r = BernsteinPoly(r_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_psi = BernsteinPoly(psi_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_r = BernsteinPoly(r_2d, final_time_, 0, tf_);
 
-        std::vector<std::vector<double>> bernstein_x = BernsteinPoly(x_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_y = BernsteinPoly(y_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_delta_v = BernsteinPoly(delta_v_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_delta_m = BernsteinPoly(delta_m_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_delta_s = BernsteinPoly(delta_s_2d, final_time_, 0, tf_);
+        // std::vector<std::vector<double>> bernstein_delta_h = BernsteinPoly(delta_h_2d, final_time_, 0, tf_);
 
-        std::vector<std::vector<double>> bernstein_delta_v = BernsteinPoly(delta_v_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_delta_m = BernsteinPoly(delta_m_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_delta_s = BernsteinPoly(delta_s_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_delta_h = BernsteinPoly(delta_h_2d, final_time_, 0, tf_);
-        std::vector<std::vector<double>> bernstein_delta_n = BernsteinPoly(delta_n_2d, final_time_, 0, tf_);
+        // 2) Evaluate Bernstein on normalized domain [0,1]
+        auto z_norm     = BernsteinPoly(z_2d,     t_norm, 0.0, 1.0);
+        auto theta_norm = BernsteinPoly(theta_2d, t_norm, 0.0, 1.0);
+        auto w_norm     = BernsteinPoly(w_2d,     t_norm, 0.0, 1.0);
+        auto q_norm     = BernsteinPoly(q_2d,     t_norm, 0.0, 1.0);
+
+        auto psi_norm   = BernsteinPoly(psi_2d,   t_norm, 0.0, 1.0);
+        auto r_norm     = BernsteinPoly(r_2d,     t_norm, 0.0, 1.0);
+
+        auto dv_norm    = BernsteinPoly(delta_v_2d,    t_norm, 0.0, 1.0);
+        auto dm_norm    = BernsteinPoly(delta_m_2d,    t_norm, 0.0, 1.0);
+        auto ds_norm    = BernsteinPoly(delta_s_2d,    t_norm, 0.0, 1.0);
+        auto dh_norm    = BernsteinPoly(delta_h_2d,    t_norm, 0.0, 1.0);
+
+        // 3) Evaluate Bernstein on real-time domain [0,tf_]
+        auto z_real     = BernsteinPoly(z_2d,     t_real, 0.0, tf_);
+        auto theta_real = BernsteinPoly(theta_2d, t_real, 0.0, tf_);
+        auto w_real     = BernsteinPoly(w_2d,     t_real, 0.0, tf_);
+        auto q_real     = BernsteinPoly(q_2d,     t_real, 0.0, tf_);
+
+        auto psi_real   = BernsteinPoly(psi_2d,   t_real, 0.0, tf_);
+        auto r_real     = BernsteinPoly(r_2d,     t_real, 0.0, tf_);
+
+        auto dv_real    = BernsteinPoly(delta_v_2d,    t_real, 0.0, tf_);
+        auto dm_real    = BernsteinPoly(delta_m_2d,    t_real, 0.0, tf_);
+        auto ds_real    = BernsteinPoly(delta_s_2d,    t_real, 0.0, tf_);
+        auto dh_real    = BernsteinPoly(delta_h_2d,    t_real, 0.0, tf_);
 
         auto flatten = [](const std::vector<std::vector<double>>& input) {
             std::vector<double> output;
@@ -736,19 +1031,10 @@ public:
         // writeToCSV(final_time_, flatten(bernstein_q), "q.csv");
         // writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints.csv");
 
-
-        // writeToCSV(final_time_, flatten(bernstein_u), "u.csv");
-        // writeToCSV(bebot_.getNodes(), u_vector, "u_controlpoints.csv");
         // writeToCSV(final_time_, flatten(bernstein_psi), "psi.csv");
         // writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints.csv");
         // writeToCSV(final_time_, flatten(bernstein_r), "r.csv");
         // writeToCSV(bebot_.getNodes(), r_vector, "r_controlpoints.csv");
-
-
-        // writeToCSV(final_time_, flatten(bernstein_x), "x.csv");
-        // writeToCSV(bebot_.getNodes(), x_vector, "x_controlpoints.csv");
-        // writeToCSV(final_time_, flatten(bernstein_y), "y.csv");
-        // writeToCSV(bebot_.getNodes(), y_vector, "y_controlpoints.csv");
 
         // writeToCSV(final_time_, flatten(bernstein_delta_v), "delta_v.csv");
         // writeToCSV(bebot_.getNodes(), delta_v_vector, "delta_v_controlpoints.csv");
@@ -758,9 +1044,70 @@ public:
         // writeToCSV(bebot_.getNodes(), delta_s_vector, "delta_s_controlpoints.csv");
         // writeToCSV(final_time_, flatten(bernstein_delta_h), "delta_h.csv");
         // writeToCSV(bebot_.getNodes(), delta_h_vector, "delta_h_controlpoints.csv");
-        // writeToCSV(final_time_, flatten(bernstein_delta_n), "delta_n.csv");
-        // writeToCSV(bebot_.getNodes(), delta_n_vector, "delta_n_controlpoints.csv");
-        // std::cout << "Solution finalized and written to CSV files" << std::endl;
+
+        // ---- normalized time outputs (0..1) ----
+        // writeToCSV(t_norm, flatten(z_norm),     "z_norm.csv");
+        // writeToCSV(bebot_.getNodes(), z_vector, "z_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(w_norm),     "w_norm.csv");
+        // writeToCSV(bebot_.getNodes(), w_vector, "w_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(theta_norm),     "theta_norm.csv");
+        // writeToCSV(bebot_.getNodes(), theta_vector, "theta_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(q_norm),     "q_norm.csv");
+        // writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(psi_norm),     "psi_norm.csv");
+        // writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(r_norm),     "r_norm.csv");
+        // writeToCSV(bebot_.getNodes(), r_vector, "r_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(dv_norm),          "delta_v_norm.csv");
+        // writeToCSV(bebot_.getNodes(), delta_v_vector, "delta_v_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(dm_norm),          "delta_m_norm.csv");
+        // writeToCSV(bebot_.getNodes(), delta_m_vector, "delta_m_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(ds_norm),          "delta_s_norm.csv");
+        // writeToCSV(bebot_.getNodes(), delta_s_vector, "delta_s_controlpoints_tau.csv");
+
+        // writeToCSV(t_norm, flatten(dh_norm),          "delta_h_norm.csv");
+        // writeToCSV(bebot_.getNodes(), delta_h_vector, "delta_h_controlpoints_tau.csv");
+
+
+        // ---- real time outputs (0..tf_) ----
+        writeToCSV(t_real, flatten(z_real),     "z_real.csv");
+        writeToCSV(bebot_.getNodes(), z_vector, "z_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(w_real),     "w_real.csv");
+        writeToCSV(bebot_.getNodes(), w_vector, "w_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(theta_real),     "theta_real.csv");
+        writeToCSV(bebot_.getNodes(), theta_vector, "theta_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(q_real),     "q_real.csv");
+        writeToCSV(bebot_.getNodes(), q_vector, "q_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(psi_real),     "psi_real.csv");
+        writeToCSV(bebot_.getNodes(), psi_vector, "psi_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(r_real),     "r_real.csv");
+        writeToCSV(bebot_.getNodes(), r_vector, "r_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(dv_real),         "delta_v_real.csv");
+        writeToCSV(bebot_.getNodes(), delta_v_vector,"delta_v_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(dm_real),         "delta_m_real.csv");
+        writeToCSV(bebot_.getNodes(), delta_m_vector,"delta_m_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(ds_real),         "delta_s_real.csv");
+        writeToCSV(bebot_.getNodes(), delta_s_vector,"delta_s_controlpoints_real.csv");
+
+        writeToCSV(t_real, flatten(dh_real),         "delta_h_real.csv");
+        writeToCSV(bebot_.getNodes(), delta_h_vector,"delta_h_controlpoints_real.csv");
+
 
     }
 
@@ -778,8 +1125,6 @@ private:
     double delta_m_min_;
     double delta_h_max_;
     double delta_h_min_;
-    double delta_n_max_;
-    double delta_n_min_;
     double zmax_;
     double zmin_;
     double wmax_;  
@@ -788,43 +1133,39 @@ private:
     double thetamin_;
     double qmax_;
     double qmin_;
-    double umax_;
-    double umin_;
     double psimax_;  
     double psimin_;
     double rmax_;
     double rmin_;
-    double xmax_;
-    double xmin_;
-    double ymax_;
-    double ymin_;
     double z0_;
     double w0_;
     double theta0_;
     double q0_;
-    
-    double u0_;
     double psi0_;
     double r0_;
-    double x0_;
-    double y0_;
     double delta_v0_;
     double delta_s0_;
     double delta_m0_;
     double delta_h0_;
-    double delta_n0_;
     double zf_;
     double thetaf_;
-    double xf_;
-    double yf_;
     double psif_;
     double t0_;
     double tend_;
+    double dv_prev_;
+    double ds_prev_;
+    double dm_prev_;
+    double dh_prev_;
+    double dv_dot_max_;
+    double dm_dot_max_;
+    double ds_dot_max_;
+    double dh_dot_max_;
+
 
     std::array<std::array<double, 4>, 4> A_;
     std::array<std::array<double, 3>, 4> B_;
-    std::array<std::array<double, 3>, 3> C_;
-    std::array<std::array<double, 2>, 3> D_;
+    std::array<std::array<double, 2>, 2> C_;
+    std::array<std::array<double, 1>, 2> D_;
     Bebot bebot_;
     std::vector<Number> solution_u_;
     std::vector<Number> solution_x2_;
@@ -842,15 +1183,13 @@ public:
 
 extern "C" {
     PointSetProblem* create_point_set_problem(int N, double tf, double delta_v_max, double delta_v_min, 
-        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min, double delta_n_max, double delta_n_min,
+        double delta_s_max, double delta_s_min, double delta_m_max, double delta_m_min, double delta_h_max, double delta_h_min,
         double zmax, double zmin, double wmax, double wmin, double thetamax, double thetamin, double qmax, double qmin, 
-        double umax, double umin, double psimax, double psimin, double rmax, double rmin, 
-        double xmax, double xmin, double ymax, double ymin, 
+        double psimax, double psimin, double rmax, double rmin,  
         double z0, double w0, double theta0, double q0,
-        double u0, double psi0, double r0, 
-        double x0, double y0, 
-        double delta_v0, double delta_s0, double delta_m0, double delta_h0, double delta_n0,
-        double zf, double thetaf, double xf, double yf, double psif, 
+        double psi0, double r0, 
+        double delta_v0, double delta_s0, double delta_m0, double delta_h0,
+        double zf, double thetaf, double psif, 
         double a11, double a12, double a13, double a14, 
         double a21, double a22, double a23, double a24, 
         double a31, double a32, double a33, double a34, 
@@ -859,13 +1198,13 @@ extern "C" {
         double b21, double b22, double b23, 
         double b31, double b32, double b33, 
         double b41, double b42, double b43, 
-        double c11, double c12, double c13, 
-        double c21, double c22, double c23, 
-        double c31, double c32, double c33, 
-        double d11, double d12,  
-        double d21, double d22, 
-        double d31, double d32,
-        double t0, double tend) {
+        double c11, double c12, 
+        double c21, double c22, 
+        double d11, 
+        double d21,
+        double t0, double tend,
+        double dv_prev, double ds_prev, double dm_prev, double dh_prev,
+        double dv_dot_max, double dm_dot_max, double ds_dot_max, double dh_dot_max) {
         
         // std::cout << std::fixed << std::setprecision(5);
         // //Print out every incoming argument:
@@ -881,39 +1220,30 @@ extern "C" {
         //           << ", delta_m_min = " << delta_m_min << "\n";
         // std::cout << "delta_h_max = " << delta_h_max
         //           << ", delta_h_min = " << delta_h_min << "\n";
-        // std::cout << "delta_n_max = " << delta_n_max
-        //           << ", delta_n_min = " << delta_n_min << "\n\n";
+
 
         // std::cout << "zmax = " << zmax << ", zmin = " << zmin << "\n";
         // std::cout << "wmax = " << wmax << ", wmin = " << wmin << "\n";
         // std::cout << "thetamax = " << thetamax << ", thetamin = " << thetamin << "\n";
         // std::cout << "qmax = " << qmax << ", qmin = " << qmin << "\n\n";
 
-        // std::cout << "umax = " << umax << ", umin = " << umin << "\n";
         // std::cout << "psimax = " << psimax << ", psimin = " << psimin << "\n";
         // std::cout << "rmax = " << rmax << ", rmin = " << rmin << "\n\n";
-
-        // std::cout << "xmax = " << xmax << ", xmin = " << xmin << "\n";
-        // std::cout << "ymax = " << ymax << ", ymin = " << ymin << "\n\n";
 
         // std::cout << "Initial states:\n";
         // std::cout << "  z0 = " << z0 << ", w0 = " << w0
         //           << ", theta0 = " << theta0 << ", q0 = " << q0 << "\n";
-        // std::cout << "  u0 = " << u0 << ", psi0 = " << psi0 << ", r0 = " << r0 << "\n";
-        // std::cout << "  x0 = " << x0 << ", y0 = " << y0 << "\n\n";
+        // std::cout << " psi0 = " << psi0 << ", r0 = " << r0 << "\n";
 
         // std::cout << "Initial controls:\n";
         // std::cout << "  delta_v0 = " << delta_v0
         //           << ", delta_s0 = " << delta_s0
         //           << ", delta_m0 = " << delta_m0
-        //           << ", delta_h0 = " << delta_h0
-        //           << ", delta_n0 = " << delta_n0 << "\n\n";
+        //           << ", delta_h0 = " << delta_h0 << "\n\n";
 
         // std::cout << "Final targets:\n";
         // std::cout << "  zf = " << zf
         //           << ", thetaf = " << thetaf
-        //           << ", xf = " << xf
-        //           << ", yf = " << yf
         //           << ", psif = " << psif << "\n\n";
 
         // std::cout << "A‐matrix (4×4):\n";
@@ -928,27 +1258,23 @@ extern "C" {
         // std::cout << "  [" << b31 << ", " << b32 << ", " << b33 << "]\n";
         // std::cout << "  [" << b41 << ", " << b42 << ", " << b43 << "]\n\n";
 
-        // std::cout << "C‐matrix (3×3):\n";
-        // std::cout << "  [" << c11 << ", " << c12 << ", " << c13 << "]\n";
-        // std::cout << "  [" << c21 << ", " << c22 << ", " << c23 << "]\n";
-        // std::cout << "  [" << c31 << ", " << c32 << ", " << c33 << "]\n\n";
+        // std::cout << "C‐matrix (2×2):\n";
+        // std::cout << "  [" << c11 << ", " << c12 << "]\n";
+        // std::cout << "  [" << c21 << ", " << c22 << "]\n\n";
 
-        // std::cout << "D‐matrix (3×2):\n";
-        // std::cout << "  [" << d11 << ", " << d12 << "]\n";
-        // std::cout << "  [" << d21 << ", " << d22 << "]\n";
-        // std::cout << "  [" << d31 << ", " << d32 << "]\n\n";
+        // std::cout << "D‐matrix (2×1):\n";
+        // std::cout << "  [" << d11 << "]\n";
+        // std::cout << "  [" << d21 << "]\n\n";
 
         // std::cout << "t0 = " << t0 << ", tend = " << tend << "\n";
         // std::cout << "===========================================\n\n";
         return new PointSetProblem(N, tf, delta_v_max, delta_v_min, delta_s_max, delta_s_min, 
-            delta_m_max, delta_m_min, delta_h_max, delta_h_min, delta_n_max, delta_n_min,
+            delta_m_max, delta_m_min, delta_h_max, delta_h_min,
             zmax, zmin, wmax, wmin, thetamax, thetamin, qmax, qmin, 
-            umax, umin, psimax, psimin, rmax, rmin,
-            xmax, xmin, ymax, ymin, 
-            z0, w0, theta0, q0, u0, psi0, r0,
-            x0, y0, 
-            delta_v0, delta_s0, delta_m0, delta_h0, delta_n0,
-            zf, thetaf, xf, yf, psif,
+            psimax, psimin, rmax, rmin,
+            z0, w0, theta0, q0, psi0, r0,
+            delta_v0, delta_s0, delta_m0, delta_h0, 
+            zf, thetaf, psif,
             a11, a12, a13, a14, 
             a21, a22, a23, a24, 
             a31, a32, a33, a34, 
@@ -957,13 +1283,11 @@ extern "C" {
             b21, b22, b23, 
             b31, b32, b33, 
             b41, b42, b43, 
-            c11, c12, c13, 
-            c21, c22, c23, 
-            c31, c32, c33, 
-            d11, d12,
-            d21, d22, 
-            d31, d32,            
-            t0, tend);
+            c11, c12, 
+            c21, c22,   
+            d11, 
+            d21,            
+            t0, tend, dv_prev, ds_prev, dm_prev, dh_prev, dv_dot_max, dm_dot_max, ds_dot_max, dh_dot_max);
     }
 
     void solve_point_set_problem(PointSetProblem* problem) {
@@ -973,8 +1297,8 @@ extern "C" {
         app->Options()->SetStringValue("gradient_approximation", "finite-difference-values");
         app->Options()->SetStringValue("jacobian_approximation", "finite-difference-values");
         app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-        app->Options()->SetIntegerValue("max_iter", 400);
-        app->Options()->SetNumericValue("tol",             1e-1);   // OptimalityTolerance = 1e-3    1
+        app->Options()->SetIntegerValue("max_iter", 10);
+        app->Options()->SetNumericValue("tol",             1e-6);   // OptimalityTolerance = 1e-3    1
         app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
         app->Options()->SetNumericValue("acceptable_tol",        1e-6); //1
         // somewhere before app->Initialize():
