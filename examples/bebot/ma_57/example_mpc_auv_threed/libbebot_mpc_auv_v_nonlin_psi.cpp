@@ -579,34 +579,34 @@ public:
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 4, (N_ + 1), 3, 1.0, &B_[0][0], 3,U_matrix_flat.data(), (N_ + 1),1.0, X2_matrix_flat.data(), (N_ + 1));
 
 
-        auto pv = [&](const char* name, const std::vector<double>& v){
-            std::cout << name << " = [";
-            for (int i=0;i<(int)v.size();++i) std::cout << v[i] << (i+1<(int)v.size()? ", ":"");
-            std::cout << "]\n";
-        };
+        // auto pv = [&](const char* name, const std::vector<double>& v){
+        //     std::cout << name << " = [";
+        //     for (int i=0;i<(int)v.size();++i) std::cout << v[i] << (i+1<(int)v.size()? ", ":"");
+        //     std::cout << "]\n";
+        // };
 
-        auto pm = [&](const char* name, const double* M, int R, int C, bool rowMajor=true){
-            std::cout << name << " ("<<R<<"x"<<C<<")\n";
-            for(int r=0;r<R;++r){
-                for(int c=0;c<C;++c){
-                    const int idx = rowMajor ? (r*C + c) : (c*R + r);
-                    std::cout << M[idx] << (c+1<C? "  ":"");
-                }
-                std::cout << "\n";
-            }
-        };
+        // auto pm = [&](const char* name, const double* M, int R, int C, bool rowMajor=true){
+        //     std::cout << name << " ("<<R<<"x"<<C<<")\n";
+        //     for(int r=0;r<R;++r){
+        //         for(int c=0;c<C;++c){
+        //             const int idx = rowMajor ? (r*C + c) : (c*R + r);
+        //             std::cout << M[idx] << (c+1<C? "  ":"");
+        //         }
+        //         std::cout << "\n";
+        //     }
+        // };
 
-        pm("A_", &A_[0][0], 4, 4, /*rowMajor=*/true);
-        pm("B_", &B_[0][0], 4, 3, /*rowMajor=*/true);
+        // pm("A_", &A_[0][0], 4, 4, /*rowMajor=*/true);
+        // pm("B_", &B_[0][0], 4, 3, /*rowMajor=*/true);
 
-        pm("Xd (X1_matrix_flat)", X1_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
-        pm("Ud (U_matrix_flat)",  U_matrix_flat.data(),  3, (N_+1), /*rowMajor=*/true);
+        // pm("Xd (X1_matrix_flat)", X1_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
+        // pm("Ud (U_matrix_flat)",  U_matrix_flat.data(),  3, (N_+1), /*rowMajor=*/true);
 
-        /* --- after first dgemm (X2 = A*Xd) --- */
-        pm("X2 after A*Xd", X2_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
+        // /* --- after first dgemm (X2 = A*Xd) --- */
+        // pm("X2 after A*Xd", X2_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
 
-        /* --- after second dgemm (X2 += B*Ud) --- */
-        pm("X2 after +B*Ud", X2_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
+        // /* --- after second dgemm (X2 += B*Ud) --- */
+        // pm("X2 after +B*Ud", X2_matrix_flat.data(), 4, (N_+1), /*rowMajor=*/true);
 
 
         // -----------------------------
@@ -633,11 +633,20 @@ public:
         // -----------------------------
         std::vector<double> X2_matrix_flat_cd(2 * (N_ + 1), 0.0);
 
-        // X2_cd = C*Xh
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 2, (N_ + 1), 2, 1.0, &C_[0][0], 2, X1_matrix_flat_cd.data(), (N_ + 1),0.0, X2_matrix_flat_cd.data(), (N_ + 1));
+        // // ---- prints for horizontal subsystem ----
+        // pm("C_", &C_[0][0], 2, 2, /*rowMajor=*/true);
+        // pm("D_", &D_[0][0], 2, 1, /*rowMajor=*/true);
 
+        // pm("Xh (X1_matrix_flat_cd)", X1_matrix_flat_cd.data(), 2, (N_+1), /*rowMajor=*/true);
+        // pm("Uh (U_matrix_flat_cd)",  U_matrix_flat_cd.data(),  1, (N_+1), /*rowMajor=*/true);
+
+        // X2_cd = C*Xh
+        // cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 2, (N_ + 1), 2, 1.0, &C_[0][0], 2, X1_matrix_flat_cd.data(), (N_ + 1),0.0, X2_matrix_flat_cd.data(), (N_ + 1));
+        // pm("X2_cd after C*Xh", X2_matrix_flat_cd.data(), 2, (N_+1), /*rowMajor=*/true);
         // X2_cd += D*Uh
         cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, 2, (N_ + 1), 1, 1.0, &D_[0][0], 1, U_matrix_flat_cd.data(), (N_ + 1),1.0, X2_matrix_flat_cd.data(), (N_ + 1));
+        // pm("X2_cd after +D*Uh", X2_matrix_flat_cd.data(), 2, (N_+1), /*rowMajor=*/true);
+        
 
         // -----------------------------
         // 8) Unpack RHS rows from X2 matrices into per-state vectors
@@ -686,6 +695,30 @@ public:
         vdMul(N_ + 1, psi_rhs.data(),   r_tau_row.data(), psi_rhs_scaled.data());
         vdMul(N_ + 1, r_rhs.data(),     r_tau_row.data(), r_rhs_scaled.data());
 
+        // // ---- print raw RHS matrices ----
+        // pm("X2_matrix_flat (depth RHS) [4x(N+1)]",    X2_matrix_flat.data(),    4, (N_+1), /*rowMajor=*/true);
+        // pm("X2_matrix_flat_cd (horiz RHS) [2x(N+1)]", X2_matrix_flat_cd.data(), 2, (N_+1), /*rowMajor=*/true);
+
+        // // ---- extracted RHS vectors ----
+        // pv("z_rhs",     z_rhs);
+        // pv("theta_rhs", theta_rhs);
+        // pv("w_rhs",     w_rhs);
+        // pv("q_rhs",     q_rhs);
+        // pv("psi_rhs",   psi_rhs);
+        // pv("r_rhs",     r_rhs);
+
+        // ---- tau weighting vector ----
+        // pv("r_tau_row", r_tau_row);
+
+        // ---- scaled RHS vectors ----
+        // pv("z_rhs_scaled",     z_rhs_scaled);
+        // pv("theta_rhs_scaled", theta_rhs_scaled);
+        // pv("w_rhs_scaled",     w_rhs_scaled);
+        // pv("q_rhs_scaled",     q_rhs_scaled);
+        // pv("psi_rhs_scaled",   psi_rhs_scaled);
+        // pv("r_rhs_scaled",     r_rhs_scaled);
+
+
         // -----------------------------
         // 10) Dynamics equality residuals:
         //   res = X_tau - RHS_scaled
@@ -704,6 +737,32 @@ public:
         vdSub(N_ + 1, dyn4.data(), q_rhs_scaled.data(),     res_q.data());
         vdSub(N_ + 1, dyn5.data(), psi_rhs_scaled.data(),   res_psi.data());
         vdSub(N_ + 1, dyn6.data(), r_rhs_scaled.data(),     res_r.data());
+
+        // ---- inputs to residual vdSub: dyn* and *_rhs_scaled ----
+        // pv("dyn1 (z_tau)",     dyn1);
+        // pv("z_rhs_scaled",     z_rhs_scaled);
+        // pv("res_z",            res_z);
+
+        // pv("dyn2 (theta_tau)", dyn2);
+        // pv("theta_rhs_scaled", theta_rhs_scaled);
+        // pv("res_theta",        res_theta);
+
+        // pv("dyn3 (w_tau)",     dyn3);
+        // pv("w_rhs_scaled",     w_rhs_scaled);
+        // pv("res_w",            res_w);
+
+        // pv("dyn4 (q_tau)",     dyn4);
+        // pv("q_rhs_scaled",     q_rhs_scaled);
+        // pv("res_q",            res_q);
+
+        // pv("dyn5 (psi_tau)",   dyn5);
+        // pv("psi_rhs_scaled",   psi_rhs_scaled);
+        // pv("res_psi",          res_psi);
+
+        // pv("dyn6 (r_tau)",     dyn6);
+        // pv("r_rhs_scaled",     r_rhs_scaled);
+        // pv("res_r",            res_r);
+
 
         // -----------------------------
         // 11) Control derivatives:
@@ -733,6 +792,28 @@ public:
         vdDiv(N_ + 1, dm_tau.data(), r_tau_row.data(), dyn8.data());
         vdDiv(N_ + 1, ds_tau.data(), r_tau_row.data(), dyn9.data());
         vdDiv(N_ + 1, dh_tau.data(), r_tau_row.data(), dyn10.data());
+
+
+        // ---- u_tau = Dm^T * u : print inputs (u) and outputs (u_tau) ----
+        // pv("delta_v_vector", delta_v_vector);
+        // pv("dv_tau",         dv_tau);
+
+        // pv("delta_m_vector", delta_m_vector);
+        // pv("dm_tau",         dm_tau);
+
+        // pv("delta_s_vector", delta_s_vector);
+        // pv("ds_tau",         ds_tau);
+
+        // pv("delta_h_vector", delta_h_vector);
+        // pv("dh_tau",         dh_tau);
+
+        // // ---- u_dt = u_tau ./ r_tau_row : print r_tau_row and dyn7..dyn10 ----
+        // pv("r_tau_row", r_tau_row);
+
+        // pv("dyn7 (dv_dt)",  dyn7);
+        // pv("dyn8 (dm_dt)",  dyn8);
+        // pv("dyn9 (ds_dt)",  dyn9);
+        // pv("dyn10 (dh_dt)", dyn10);
 
         // -----------------------------
         // 12) Pack constraints into g in the exact block layout:
@@ -1204,7 +1285,7 @@ extern "C" {
         app->Options()->SetStringValue("gradient_approximation", "finite-difference-values");
         app->Options()->SetStringValue("jacobian_approximation", "finite-difference-values");
         app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-        app->Options()->SetIntegerValue("max_iter", 10);
+        app->Options()->SetIntegerValue("max_iter", 1000);
         app->Options()->SetNumericValue("tol",             1e-6);   // OptimalityTolerance = 1e-3    1
         app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
         app->Options()->SetNumericValue("acceptable_tol",        1e-6); //1
@@ -1215,7 +1296,7 @@ extern "C" {
 
 
         //app->Options()->SetNumericValue("constr_viol_tol", 1e-6);
-        app->Options()->SetIntegerValue("print_level", 0); 
+        app->Options()->SetIntegerValue("print_level", 3); 
         //app->Options()->SetStringValue("nlp_scaling_method", "gradient-based");
         //app->Options()->SetIntegerValue("max_line_search_step_retries", 50);
         //app->Options()->SetNumericValue("alpha_for_y", 0.6);
