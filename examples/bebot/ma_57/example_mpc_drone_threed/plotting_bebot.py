@@ -17,87 +17,97 @@ def read_data(filename: str):
 
 
 # ---------- Load REAL-time trajectories + control points ----------
-times_z, values_z = read_data("z_real.csv")
-cp_times_z, cp_values_z = read_data("z_controlpoints_real.csv")
+times_px, values_px = read_data("px_real.csv")
+cp_times_px, cp_values_px = read_data("px_controlpoints_real.csv")
 
-times_theta, values_theta = read_data("theta_real.csv")
-cp_times_theta, cp_values_theta = read_data("theta_controlpoints_real.csv")
+times_py, values_py = read_data("py_real.csv")
+cp_times_py, cp_values_py = read_data("py_controlpoints_real.csv")
 
-times_w, values_w = read_data("w_real.csv")
-cp_times_w, cp_values_w = read_data("w_controlpoints_real.csv")
-
-times_q, values_q = read_data("q_real.csv")
-cp_times_q, cp_values_q = read_data("q_controlpoints_real.csv")
+times_pz, values_pz = read_data("pz_real.csv")
+cp_times_pz, cp_values_pz = read_data("pz_controlpoints_real.csv")
 
 times_psi, values_psi = read_data("psi_real.csv")
 cp_times_psi, cp_values_psi = read_data("psi_controlpoints_real.csv")
 
-times_r, values_r = read_data("r_real.csv")
-cp_times_r, cp_values_r = read_data("r_controlpoints_real.csv")
+times_vx, values_vx = read_data("vx_real.csv")
+cp_times_vx, cp_values_vx = read_data("vx_controlpoints_real.csv")
 
-times_dv, values_dv = read_data("delta_v_real.csv")
-cp_times_dv, cp_values_dv = read_data("delta_v_controlpoints_real.csv")
+times_vy, values_vy = read_data("vy_real.csv")
+cp_times_vy, cp_values_vy = read_data("vy_controlpoints_real.csv")
 
-times_dm, values_dm = read_data("delta_m_real.csv")
-cp_times_dm, cp_values_dm = read_data("delta_m_controlpoints_real.csv")
+times_vz, values_vz = read_data("vz_real.csv")
+cp_times_vz, cp_values_vz = read_data("vz_controlpoints_real.csv")
 
-times_ds, values_ds = read_data("delta_s_real.csv")
-cp_times_ds, cp_values_ds = read_data("delta_s_controlpoints_real.csv")
+times_w, values_w = read_data("w_real.csv")
+cp_times_w, cp_values_w = read_data("w_controlpoints_real.csv")
 
-times_dh, values_dh = read_data("delta_h_real.csv")
-cp_times_dh, cp_values_dh = read_data("delta_h_controlpoints_real.csv")
+times_ax, values_ax = read_data("ax_real.csv")
+cp_times_ax, cp_values_ax = read_data("ax_controlpoints_real.csv")
+
+times_ay, values_ay = read_data("ay_real.csv")
+cp_times_ay, cp_values_ay = read_data("ay_controlpoints_real.csv")
+
+times_az, values_az = read_data("az_real.csv")
+cp_times_az, cp_values_az = read_data("az_controlpoints_real.csv")
+
+times_aw, values_aw = read_data("aw_real.csv")
+cp_times_aw, cp_values_aw = read_data("aw_controlpoints_real.csv")
 
 
 line_width = 0.8
 cp_size = 60
 
-# ---------- Plot 1: z, theta, w, q ----------
+# ---------- Plot 1: positions px, py, pz, psi ----------
 plt.figure(figsize=(10, 6))
-plt.plot(times_z, values_z, marker=".", linestyle=":", linewidth=line_width, label="z")
-plt.plot(times_theta, values_theta, marker=".", linestyle=":", linewidth=line_width, label="theta")
-plt.plot(times_w, values_w, marker=".", linestyle=":", linewidth=line_width, label="w")
-plt.plot(times_q, values_q, marker=".", linestyle=":", linewidth=line_width, label="q")
-
-plt.scatter(cp_times_z, cp_values_z, s=cp_size, label="z control points")
-plt.scatter(cp_times_theta, cp_values_theta, s=cp_size, label="theta control points")
-plt.scatter(cp_times_w, cp_values_w, s=cp_size, label="w control points")
-plt.scatter(cp_times_q, cp_values_q, s=cp_size, label="q control points")
-
-plt.title("BeBOT states (real time): z, theta, w, q")
-plt.xlabel("Time [s]")
-plt.ylabel("Value")
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-
-# ---------- Plot 2: psi, r ----------
-plt.figure(figsize=(10, 6))
+plt.plot(times_px, values_px, marker=".", linestyle=":", linewidth=line_width, label="px")
+plt.plot(times_py, values_py, marker=".", linestyle=":", linewidth=line_width, label="py")
+plt.plot(times_pz, values_pz, marker=".", linestyle=":", linewidth=line_width, label="pz")
 plt.plot(times_psi, values_psi, marker=".", linestyle=":", linewidth=line_width, label="psi")
-plt.plot(times_r, values_r, marker=".", linestyle=":", linewidth=line_width, label="r")
 
+plt.scatter(cp_times_px, cp_values_px, s=cp_size, label="px control points")
+plt.scatter(cp_times_py, cp_values_py, s=cp_size, label="py control points")
+plt.scatter(cp_times_pz, cp_values_pz, s=cp_size, label="pz control points")
 plt.scatter(cp_times_psi, cp_values_psi, s=cp_size, label="psi control points")
-plt.scatter(cp_times_r, cp_values_r, s=cp_size, label="r control points")
 
-plt.title("BeBOT states (real time): psi, r")
+plt.title("BeBOT states (real time): px, py, pz, psi")
 plt.xlabel("Time [s]")
 plt.ylabel("Value")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
 
-# ---------- Plot 3: controls dv, dm, ds, dh ----------
+# ---------- Plot 2: velocities vx, vy, vz, w ----------
 plt.figure(figsize=(10, 6))
-plt.plot(times_dv, values_dv, marker=".", linestyle=":", linewidth=line_width, label="delta_v")
-plt.plot(times_dm, values_dm, marker=".", linestyle=":", linewidth=line_width, label="delta_m")
-plt.plot(times_ds, values_ds, marker=".", linestyle=":", linewidth=line_width, label="delta_s")
-plt.plot(times_dh, values_dh, marker=".", linestyle=":", linewidth=line_width, label="delta_h")
+plt.plot(times_vx, values_vx, marker=".", linestyle=":", linewidth=line_width, label="vx")
+plt.plot(times_vy, values_vy, marker=".", linestyle=":", linewidth=line_width, label="vy")
+plt.plot(times_vz, values_vz, marker=".", linestyle=":", linewidth=line_width, label="vz")
+plt.plot(times_w, values_w, marker=".", linestyle=":", linewidth=line_width, label="w")
 
-plt.scatter(cp_times_dv, cp_values_dv, s=cp_size, label="delta_v control points")
-plt.scatter(cp_times_dm, cp_values_dm, s=cp_size, label="delta_m control points")
-plt.scatter(cp_times_ds, cp_values_ds, s=cp_size, label="delta_s control points")
-plt.scatter(cp_times_dh, cp_values_dh, s=cp_size, label="delta_h control points")
+plt.scatter(cp_times_vx, cp_values_vx, s=cp_size, label="vx control points")
+plt.scatter(cp_times_vy, cp_values_vy, s=cp_size, label="vy control points")
+plt.scatter(cp_times_vz, cp_values_vz, s=cp_size, label="vz control points")
+plt.scatter(cp_times_w, cp_values_w, s=cp_size, label="w control points")
 
-plt.title("BeBOT controls (real time): delta_v, delta_m, delta_s, delta_h")
+plt.title("BeBOT states (real time): vx, vy, vz, w")
+plt.xlabel("Time [s]")
+plt.ylabel("Value")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+
+# ---------- Plot 3: controls ax, ay, az, aw ----------
+plt.figure(figsize=(10, 6))
+plt.plot(times_ax, values_ax, marker=".", linestyle=":", linewidth=line_width, label="ax")
+plt.plot(times_ay, values_ay, marker=".", linestyle=":", linewidth=line_width, label="ay")
+plt.plot(times_az, values_az, marker=".", linestyle=":", linewidth=line_width, label="az")
+plt.plot(times_aw, values_aw, marker=".", linestyle=":", linewidth=line_width, label="aw")
+
+plt.scatter(cp_times_ax, cp_values_ax, s=cp_size, label="ax control points")
+plt.scatter(cp_times_ay, cp_values_ay, s=cp_size, label="ay control points")
+plt.scatter(cp_times_az, cp_values_az, s=cp_size, label="az control points")
+plt.scatter(cp_times_aw, cp_values_aw, s=cp_size, label="aw control points")
+
+plt.title("BeBOT controls (real time): ax, ay, az, aw")
 plt.xlabel("Time [s]")
 plt.ylabel("Value")
 plt.grid(True)
