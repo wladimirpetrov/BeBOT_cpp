@@ -55,15 +55,15 @@ int main() {
     // -----------------------------
     // Current state at knot 0 (these are pinned in your get_bounds_info)
     // -----------------------------
-    const double px_cur  = 0.0;
-    const double py_cur  = 0.0;
-    const double pz_cur  = 0.5;
+    const double px_cur  = 2.0;
+    const double py_cur  = -2.0;
+    const double pz_cur  = 0.1;
     const double psi_cur = 0.0;
 
-    const double vx_cur  = 0.0;
-    const double vy_cur  = 0.0;
-    const double vz_cur  = 0.0;
-    const double w_cur   = 0.0;
+    const double vx_cur  = 0.1;
+    const double vy_cur  = 0.1;
+    const double vz_cur  = 0.1;
+    const double w_cur   = 0.2;
 
     // -----------------------------
     // Target (used in objective)
