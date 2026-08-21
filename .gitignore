@@ -1,1 +1,5 @@
 *.csv
+
+# Generated plots and datasets
+*.png
+*.csv
